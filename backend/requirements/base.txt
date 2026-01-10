@@ -1,0 +1,30 @@
+# Django
+Django>=5.0,<6.0
+djangorestframework>=3.14,<4.0
+django-cors-headers>=4.3,<5.0
+django-filter>=24.0,<25.0
+
+# Multi-tenancy
+django-tenants>=3.6,<4.0
+tenant-schemas-celery>=4.0,<5.0
+
+# Celery
+celery>=5.3,<6.0
+redis>=5.0,<6.0
+django-celery-beat>=2.6,<3.0
+
+# Auth
+djangorestframework-simplejwt>=5.3,<6.0
+
+# HTTP Client
+httpx>=0.25,<1.0
+
+# Database
+psycopg[binary]>=3.1,<4.0
+
+# Utils
+python-decouple>=3.8,<4.0
+structlog>=24.0,<25.0
+
+# Monitoring
+sentry-sdk>=1.40,<2.0

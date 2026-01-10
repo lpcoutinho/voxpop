@@ -1,0 +1,46 @@
+# ============================================
+# VoxPop - Dockerfile para Desenvolvimento
+# ============================================
+
+# ============================================
+# STAGE: Backend Development
+# ============================================
+FROM python:3.11-slim AS backend-dev
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1
+
+WORKDIR /app
+
+# Instalar dependencias do sistema
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    libpq-dev \
+    postgresql-client \
+    && rm -rf /var/lib/apt/lists/*
+
+# Instalar dependencias Python
+COPY backend/requirements/base.txt backend/requirements/development.txt /tmp/
+RUN pip install --no-cache-dir -r /tmp/development.txt
+
+# Nao copiar codigo - sera montado via volume
+EXPOSE 8000
+
+CMD ["python", "manage.py", "runserver", "0.0.0.0:8000"]
+
+
+# ============================================
+# STAGE: Frontend Development
+# ============================================
+FROM node:20-alpine AS frontend-dev
+
+WORKDIR /app
+
+# Instalar dependencias
+COPY frontend/package.json frontend/package-lock.json ./
+RUN npm ci
+
+# Nao copiar codigo - sera montado via volume
+EXPOSE 5173
+
+CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0"]
