@@ -1,5 +1,6 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -8,6 +9,7 @@ import { Separator } from '@/components/ui/separator';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/contexts/AuthContext';
+import { teamMembersService, TeamMember } from '@/services/teamMembers';
 import {
   User,
   Building2,
@@ -24,13 +26,23 @@ import {
   Trash2,
   UserPlus,
   ExternalLink,
+  Loader2,
 } from 'lucide-react';
+import { toast } from 'sonner';
 
 type TabType = 'profile' | 'organization' | 'plan' | 'team';
 
 export default function SettingsPage() {
   const { user, tenant } = useAuth();
   const [activeTab, setActiveTab] = useState<TabType>('profile');
+
+  // Buscar membros da equipe
+  const { data: teamMembersData, isLoading: isLoadingTeam } = useQuery({
+    queryKey: ['team-members'],
+    queryFn: () => teamMembersService.list(),
+  });
+
+  const teamMembers = teamMembersData?.results || [];
 
   const getInitials = (name: string) => {
     return name
@@ -41,32 +53,27 @@ export default function SettingsPage() {
       .slice(0, 2);
   };
 
-  // Mock team data
-  const teamMembers = [
-    { id: 1, name: 'João Silva', email: 'joao@example.com', role: 'owner', status: 'active' },
-    { id: 2, name: 'Maria Santos', email: 'maria@example.com', role: 'admin', status: 'active' },
-    { id: 3, name: 'Pedro Costa', email: 'pedro@example.com', role: 'operator', status: 'active' },
-    { id: 4, name: 'Ana Oliveira', email: 'ana@example.com', role: 'viewer', status: 'pending' },
-  ];
-
   const getRoleLabel = (role: string) => {
     const roles: Record<string, { label: string; color: string }> = {
-      owner: { label: 'Proprietário', color: 'bg-yellow-500' },
       admin: { label: 'Administrador', color: 'bg-purple-500' },
+      coordinator: { label: 'Coordenador', color: 'bg-purple-500' },
       operator: { label: 'Operador', color: 'bg-blue-500' },
-      viewer: { label: 'Visualizador', color: 'bg-gray-500' },
+      analyst: { label: 'Analista', color: 'bg-green-500' },
+      volunteer: { label: 'Voluntário', color: 'bg-gray-500' },
     };
     return roles[role] || { label: role, color: 'bg-gray-500' };
   };
 
   const getRoleIcon = (role: string) => {
     switch (role) {
-      case 'owner':
-        return Crown;
       case 'admin':
         return Shield;
+      case 'coordinator':
+        return Crown;
       case 'operator':
         return UserCog;
+      case 'analyst':
+        return Eye;
       default:
         return Eye;
     }
@@ -169,11 +176,6 @@ export default function SettingsPage() {
               <div className="space-y-4">
                 <h3 className="font-medium text-foreground">Alterar senha</h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="current-password">Senha atual</Label>
-                    <Input id="current-password" type="password" />
-                  </div>
-                  <div />
                   <div className="space-y-2">
                     <Label htmlFor="new-password">Nova senha</Label>
                     <Input id="new-password" type="password" />
@@ -291,44 +293,52 @@ export default function SettingsPage() {
                 Gerencie os membros da sua equipe e suas permissões de acesso.
               </p>
 
-              <div className="space-y-4">
-                {teamMembers.map((member) => {
-                  const roleInfo = getRoleLabel(member.role);
-                  const RoleIcon = getRoleIcon(member.role);
-                  return (
-                    <div
-                      key={member.id}
-                      className="flex items-center justify-between p-4 rounded-lg border bg-background"
-                    >
-                      <div className="flex items-center gap-4">
-                        <Avatar className="h-10 w-10">
-                          <AvatarFallback className="bg-primary/10 text-primary">
-                            {getInitials(member.name)}
-                          </AvatarFallback>
-                        </Avatar>
-                        <div>
-                          <div className="flex items-center gap-2">
-                            <p className="font-medium text-foreground">{member.name}</p>
-                            {member.status === 'pending' && (
-                              <Badge variant="outline" className="text-yellow-600 border-yellow-600">
-                                Pendente
-                              </Badge>
-                            )}
-                          </div>
-                          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                            <Mail className="h-3 w-3" />
-                            {member.email}
+              {isLoadingTeam ? (
+                <div className="flex items-center justify-center py-12">
+                  <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                </div>
+              ) : teamMembers.length === 0 ? (
+                <div className="text-center py-12">
+                  <p className="text-muted-foreground">Nenhum membro na equipe ainda.</p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {teamMembers.map((member) => {
+                    const roleInfo = getRoleLabel(member.role);
+                    const RoleIcon = getRoleIcon(member.role);
+                    return (
+                      <div
+                        key={member.id}
+                        className="flex items-center justify-between p-4 rounded-lg border bg-background"
+                      >
+                        <div className="flex items-center gap-4">
+                          <Avatar className="h-10 w-10">
+                            <AvatarFallback className="bg-primary/10 text-primary">
+                              {getInitials(member.display_name)}
+                            </AvatarFallback>
+                          </Avatar>
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <p className="font-medium text-foreground">{member.display_name}</p>
+                              {member.pending && (
+                                <Badge variant="outline" className="text-yellow-600 border-yellow-600">
+                                  Pendente
+                                </Badge>
+                              )}
+                            </div>
+                            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                              <Mail className="h-3 w-3" />
+                              {member.user_email}
+                            </div>
                           </div>
                         </div>
-                      </div>
 
-                      <div className="flex items-center gap-4">
-                        <Badge className={`${roleInfo.color} text-white`}>
-                          <RoleIcon className="h-3 w-3 mr-1" />
-                          {roleInfo.label}
-                        </Badge>
+                        <div className="flex items-center gap-4">
+                          <Badge className={`${roleInfo.color} text-white`}>
+                            <RoleIcon className="h-3 w-3 mr-1" />
+                            {roleInfo.label}
+                          </Badge>
 
-                        {member.role !== 'owner' && (
                           <div className="flex items-center gap-1">
                             <Button variant="ghost" size="icon" className="h-8 w-8">
                               <UserCog className="h-4 w-4" />
@@ -341,33 +351,37 @@ export default function SettingsPage() {
                               <Trash2 className="h-4 w-4" />
                             </Button>
                           </div>
-                        )}
+                        </div>
                       </div>
-                    </div>
-                  );
-                })}
-              </div>
+                    );
+                  })}
+                </div>
+              )}
 
               <Separator className="my-6" />
 
               <div className="rounded-lg border border-dashed p-6 text-center">
                 <h4 className="font-medium text-foreground mb-2">Papéis e Permissões</h4>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm text-muted-foreground mt-4">
-                  <div className="flex items-center gap-2">
-                    <Crown className="h-4 w-4 text-yellow-500" />
-                    <span>Proprietário - Acesso total</span>
-                  </div>
+                <div className="grid grid-cols-2 md:grid-cols-5 gap-4 text-sm text-muted-foreground mt-4">
                   <div className="flex items-center gap-2">
                     <Shield className="h-4 w-4 text-purple-500" />
-                    <span>Admin - Gerencia equipe</span>
+                    <span>Admin - Acesso total</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Crown className="h-4 w-4 text-yellow-500" />
+                    <span>Coordenador - Gerencia</span>
                   </div>
                   <div className="flex items-center gap-2">
                     <UserCog className="h-4 w-4 text-blue-500" />
-                    <span>Operador - Cria campanhas</span>
+                    <span>Operador - Campanhas</span>
                   </div>
                   <div className="flex items-center gap-2">
-                    <Eye className="h-4 w-4 text-gray-500" />
-                    <span>Visualizador - Somente leitura</span>
+                    <Eye className="h-4 w-4 text-green-500" />
+                    <span>Analista - Dados</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Users className="h-4 w-4 text-gray-500" />
+                    <span>Voluntário - Visualização</span>
                   </div>
                 </div>
               </div>

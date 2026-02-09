@@ -1,0 +1,32 @@
+FROM python:3.11-slim
+
+# Instala dependências do sistema
+RUN apt-get update && apt-get install -y \
+    build-essential \
+    libpq-dev \
+    libcurl4-openssl-dev \
+    libssl-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+# Copia requirements e instala dependências
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Copia código do backend
+COPY . .
+
+# Coleta arquivos estáticos
+RUN python manage.py collectstatic --noinput
+
+# Cria usuário não-root para segurança
+RUN adduser --disabled-password --gecos '' appuser && \
+    chown -R appuser:appuser /app
+USER appuser
+
+# Exposição porta
+EXPOSE 8000
+
+# Comando de execução com Gunicorn para produção
+CMD ["gunicorn", "--bind", "0.0.0.0:8000", "--workers", "4", "--timeout", "120", "--worker-class", "sync", "config.wsgi:application"]

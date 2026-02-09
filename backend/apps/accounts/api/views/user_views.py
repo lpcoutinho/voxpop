@@ -42,8 +42,15 @@ class ChangePasswordView(generics.GenericAPIView):
         serializer.is_valid(raise_exception=True)
 
         user = request.user
-        if not user.check_password(serializer.data['old_password']):
-            return Response({"old_password": ["Senha atual incorreta."]}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Só verificar senha atual se foi fornecida
+        old_password = serializer.data.get('old_password')
+        if old_password:
+            if not user.check_password(old_password):
+                return Response({"old_password": ["Senha atual incorreta."]}, status=status.HTTP_400_BAD_REQUEST)
+        elif not user.force_password_change:
+            # Se não está forçado a trocar senha, exige senha atual
+            return Response({"old_password": ["Senha atual é obrigatória."]}, status=status.HTTP_400_BAD_REQUEST)
 
         user.set_password(serializer.data['new_password'])
         user.force_password_change = False  # Reset flag

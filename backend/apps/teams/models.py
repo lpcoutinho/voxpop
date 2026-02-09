@@ -79,13 +79,18 @@ class TeamMember(BaseModel):
     def is_admin_role(self):
         """Verifica se role tem acesso administrativo"""
         return self.role in ['admin', 'coordinator']
-    
+
     @property
     def can_manage_campaigns(self):
         """Verifica se pode gerenciar campanhas"""
         return self.role in ['admin', 'coordinator', 'operator']
-    
+
     @property
     def can_view_data(self):
         """Verifica se pode visualizar dados"""
         return self.role in ['admin', 'coordinator', 'operator', 'analyst']
+
+    @property
+    def pending(self):
+        """Verifica se o membro está pendente (ainda não trocou a senha)"""
+        return self.user.force_password_change

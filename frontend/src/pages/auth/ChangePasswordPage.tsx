@@ -28,7 +28,6 @@ import { api } from '@/services/api';
 import { useAuth } from '@/contexts/AuthContext';
 
 const formSchema = z.object({
-  old_password: z.string().min(1, 'Senha atual é obrigatória'),
   new_password: z.string().min(8, 'A nova senha deve ter no mínimo 8 caracteres'),
   confirm_password: z.string().min(1, 'Confirmação de senha é obrigatória'),
 }).refine((data) => data.new_password === data.confirm_password, {
@@ -45,7 +44,6 @@ export default function ChangePasswordPage() {
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      old_password: '',
       new_password: '',
       confirm_password: '',
     },
@@ -89,20 +87,6 @@ export default function ChangePasswordPage() {
         <CardContent>
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-              <FormField
-                control={form.control}
-                name="old_password"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Senha Atual (recebida no WhatsApp)</FormLabel>
-                    <FormControl>
-                      <Input type="password" placeholder="••••••••" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              
               <FormField
                 control={form.control}
                 name="new_password"

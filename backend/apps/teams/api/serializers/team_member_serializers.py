@@ -12,12 +12,13 @@ class TeamMemberListSerializer(serializers.ModelSerializer):
     user_email = serializers.EmailField(source='user.email', read_only=True)
     role_display = serializers.CharField(source='get_role_display', read_only=True)
     department_display = serializers.CharField(source='get_department_display', read_only=True)
-    
+    pending = serializers.BooleanField(read_only=True)
+
     class Meta:
         model = TeamMember
         fields = [
             'id', 'display_name', 'user_email', 'role', 'role_display',
-            'department', 'department_display', 'is_active', 'created_at'
+            'department', 'department_display', 'is_active', 'pending', 'created_at'
         ]
 
 

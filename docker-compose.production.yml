@@ -1,0 +1,211 @@
+version: '3.7'
+
+services:
+  voxpop_backend:
+    image: lpcoutinho/voxpop-backend:latest
+    deploy:
+      mode: replicated
+      replicas: 1
+      placement:
+        constraints:
+          - node.role == manager
+      resources:
+        limits:
+          cpus: "1"
+          memory: 2048M
+      labels:
+        - traefik.enable=true
+        - traefik.http.routers.voxpop_backend.rule=Host(`voxpop.tratto.solutions`)
+        - traefik.http.routers.voxpop_backend.entrypoints=websecure
+        - traefik.http.routers.voxpop_backend.tls.certresolver=letsencryptresolver
+        - traefik.http.routers.voxpop_backend.priority=2
+        - traefik.http.routers.voxpop_backend.service=voxpop_backend
+        - traefik.http.services.voxpop_backend.loadbalancer.server.port=8000
+        - traefik.http.services.voxpop_backend.loadbalancer.passHostHeader=true
+        - traefik.http.routers.voxpop_backend.middlewares=sslheader
+        - traefik.http.middlewares.sslheader.headers.customrequestheaders.X-Forwarded-Proto=https
+    networks:
+      - LaunchNet
+    environment:
+      - DJANGO_SETTINGS_MODULE=config.settings.production
+      - SECRET_KEY_BASE=super_secret_django_change_this_min_128_chars_secure_random_string_here
+      - DEBUG=0
+      - NODE_ENV=production
+      - RAILS_ENV=production
+      - INSTALLATION_ENV=docker
+      - RAILS_LOG_TO_STDOUT=true
+      # Configurações Banco
+      - POSTGRES_HOST=voxpop_postgres
+      - POSTGRES_USERNAME=voxpop
+      - POSTGRES_PASSWORD=7137ba55e05cb8d79c0af68d9257b2ec
+      - POSTGRES_DATABASE=voxpop_prod
+      # Redis
+      - REDIS_URL=redis://voxpop_redis:6379
+      - CELERY_BROKER_URL=redis://voxpop_redis:6379/1
+      # Evolution API
+      - EVOLUTION_API_URL=https://evolution.tratto.solutions
+      - EVOLUTION_API_KEY=C255C70B21CF-44BE-9473-301504BCA0C4
+      # Email
+      - MAILER_SENDER_EMAIL=coutinholps@gmail.com
+      - SMTP_DOMAIN=gmail.com
+      - SMTP_ADDRESS=smtp.gmail.com
+      - SMTP_PORT=587
+      - SMTP_USERNAME=coutinholps@gmail.com
+      - SMTP_PASSWORD=otcp_nref_jjiz_uoea
+      - SMTP_AUTHENTICATION=plain
+      - SMTP_ENABLE_STARTTLS_AUTO=true
+      - SMTP_OPENSSL_VERIFY_MODE=peer
+      # Configurações Frontend
+      - FRONTEND_URL=https://voxpop.tratto.solutions
+      - VITE_API_URL=https://voxpop.tratto.solutions/api
+      - CORS_ALLOWED_ORIGINS=https://voxpop.tratto.solutions
+
+  voxpop_frontend:
+    image: lpcoutinho/voxpop-frontend:latest
+    deploy:
+      mode: replicated
+      replicas: 1
+      placement:
+        constraints:
+          - node.role == manager
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 512M
+      labels:
+        - traefik.enable=true
+        - traefik.http.routers.voxpop_frontend.rule=Host(`voxpop.tratto.solutions`)
+        - traefik.http.routers.voxpop_frontend.entrypoints=websecure
+        - traefik.http.routers.voxpop_frontend.tls.certresolver=letsencryptresolver
+        - traefik.http.routers.voxpop_frontend.priority=1
+        - traefik.http.routers.voxpop_frontend.service=voxpop_frontend
+        - traefik.http.services.voxpop_frontend.loadbalancer.server.port=80
+        - traefik.http.routers.voxpop_frontend.middlewares=sslheader
+        - traefik.http.middlewares.sslheader.headers.customrequestheaders.X-Forwarded-Proto=https
+    networks:
+      - LaunchNet
+    volumes:
+      - voxpop_static:/app/static
+      - voxpop_media:/app/media
+
+  voxpop_celery:
+    image: lpcoutinho/voxpop-backend:latest
+    command: celery -A config worker --loglevel=info --concurrency=4
+    deploy:
+      mode: replicated
+      replicas: 1
+      placement:
+        constraints:
+          - node.role == manager
+      resources:
+        limits:
+          cpus: "1"
+          memory: 1024M
+    networks:
+      - LaunchNet
+    environment:
+      - DJANGO_SETTINGS_MODULE=config.settings.production
+      - POSTGRES_HOST=voxpop_postgres
+      - POSTGRES_USERNAME=voxpop
+      - POSTGRES_PASSWORD=7137ba55e05cb8d79c0af68d9257b2ec
+      - POSTGRES_DATABASE=voxpop_prod
+      - REDIS_URL=redis://voxpop_redis:6379
+      - CELERY_BROKER_URL=redis://voxpop_redis:6379/1
+      - EVOLUTION_API_URL=https://evolution.tratto.solutions
+      - EVOLUTION_API_KEY=C255C70B21CF-44BE-9473-301504BCA0C4
+
+  voxpop_celery_beat:
+    image: lpcoutinho/voxpop-backend:latest
+    command: celery -A config beat --loglevel=info
+    deploy:
+      mode: replicated
+      replicas: 1
+      placement:
+        constraints:
+          - node.role == manager
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 256M
+    networks:
+      - LaunchNet
+    environment:
+      - DJANGO_SETTINGS_MODULE=config.settings.production
+      - POSTGRES_HOST=voxpop_postgres
+      - POSTGRES_USERNAME=voxpop
+      - POSTGRES_PASSWORD=7137ba55e05cb8d79c0af68d9257b2ec
+      - POSTGRES_DATABASE=voxpop_prod
+      - REDIS_URL=redis://voxpop_redis:6379
+      - CELERY_BROKER_URL=redis://voxpop_redis:6379/1
+      - EVOLUTION_API_URL=https://evolution.tratto.solutions
+      - EVOLUTION_API_KEY=C255C70B21CF-44BE-9473-301504BCA0C4
+
+  voxpop_postgres:
+    image: postgres:15-alpine
+    command: postgres -c max_connections=200 -c shared_buffers=256MB -c log_statement=all
+    deploy:
+      mode: replicated
+      replicas: 1
+      placement:
+        constraints:
+          - node.role == manager
+      resources:
+        limits:
+          cpus: "1"
+          memory: 2048M
+    networks:
+      - LaunchNet
+    environment:
+      - POSTGRES_USER=voxpop
+      - POSTGRES_PASSWORD=7137ba55e05cb8d79c0af68d9257b2ec
+      - POSTGRES_DB=voxpop_prod
+      - POSTGRES_INITDB_ARGS=--auth-host=scram-sha-256
+    volumes:
+      - voxpop_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U voxpop"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  voxpop_redis:
+    image: redis:7-alpine
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+    deploy:
+      mode: replicated
+      replicas: 1
+      placement:
+        constraints:
+          - node.role == manager
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 512M
+    networks:
+      - LaunchNet
+    volumes:
+      - voxpop_redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+volumes:
+  voxpop_postgres_data:
+    external: true
+    name: voxpop_postgres_data
+  voxpop_redis_data:
+    external: true
+    name: voxpop_redis_data
+  voxpop_static:
+    external: true
+    name: voxpop_static
+  voxpop_media:
+    external: true
+    name: voxpop_media
+
+networks:
+  LaunchNet:
+    external: true
+    name: LaunchNet

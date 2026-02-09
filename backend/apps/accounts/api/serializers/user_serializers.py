@@ -51,7 +51,7 @@ class UserTenantSerializer(serializers.ModelSerializer):
 
 class ChangePasswordSerializer(serializers.Serializer):
     """Serializer para troca de senha."""
-    old_password = serializers.CharField(required=True)
+    old_password = serializers.CharField(required=False, allow_blank=True, allow_null=True)
     new_password = serializers.CharField(required=True, validators=[validate_password])
     confirm_password = serializers.CharField(required=True)
 
