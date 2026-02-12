@@ -33,13 +33,14 @@ export default function CampaignDetailsPage() {
   if (isLoading) return <div>Carregando...</div>;
   if (!campaign) return <div>Campanha não encontrada.</div>;
 
-  const progress = campaign.total_recipients > 0 
-    ? (campaign.messages_sent / campaign.total_recipients) * 100 
+  // Cálculo de progresso baseado em ENTREGUES (não enviadas)
+  const progress = campaign.messages_sent > 0
+    ? (campaign.messages_delivered / campaign.messages_sent) * 100
     : 0;
 
   return (
     <div className="space-y-6">
-      <PageHeader 
+      <PageHeader
         title={campaign.name}
         description={`Criada por ${campaign.created_by_name} em ${format(new Date(campaign.created_at), "d 'de' MMMM, yyyy", { locale: ptBR })}`}
         breadcrumbs={[
@@ -53,18 +54,24 @@ export default function CampaignDetailsPage() {
         }
       />
 
-      {/* Stats Grid */}
-      <div className="grid gap-4 md:grid-cols-4">
+      {/* Stats Grid - 5 cards: Progresso, Enviadas, Entregues, Lidas, Falhas */}
+      <div className="grid gap-4 md:grid-cols-5">
+        {/* Progresso */}
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Progresso</CardTitle>
+            <CardTitle className="text-sm font-medium">Progresso de Entrega</CardTitle>
             <BarChart className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{Math.round(progress)}%</div>
             <Progress value={progress} className="h-2 mt-2" />
+            <p className="text-xs text-muted-foreground mt-1">
+              {campaign.messages_delivered} de {campaign.messages_sent} entregues
+            </p>
           </CardContent>
         </Card>
+
+        {/* Enviadas */}
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Enviadas</CardTitle>
@@ -72,9 +79,39 @@ export default function CampaignDetailsPage() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{campaign.messages_sent}</div>
-            <p className="text-xs text-muted-foreground">de {campaign.total_recipients} total</p>
+            <p className="text-xs text-muted-foreground">de {campaign.total_recipients} destinatários</p>
           </CardContent>
         </Card>
+
+        {/* Entregues */}
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Entregues</CardTitle>
+            <Badge className="h-4 w-4 text-green-500">
+              <CheckCircle className="h-3 w-3" />
+            </Badge>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{campaign.messages_delivered}</div>
+            <p className="text-xs text-muted-foreground">Receberam a mensagem</p>
+          </CardContent>
+        </Card>
+
+        {/* Lidas */}
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Lidas</CardTitle>
+            <Badge className="h-4 w-4 text-blue-500">
+              <CheckCircle className="h-3 w-3" />
+            </Badge>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{campaign.messages_read}</div>
+            <p className="text-xs text-muted-foreground">Visualizaram a mensagem</p>
+          </CardContent>
+        </Card>
+
+        {/* Falhas */}
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Falhas</CardTitle>
@@ -83,18 +120,6 @@ export default function CampaignDetailsPage() {
           <CardContent>
             <div className="text-2xl font-bold">{campaign.messages_failed}</div>
             <p className="text-xs text-muted-foreground">Erros de envio</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Pendentes</CardTitle>
-            <Clock className="h-4 w-4 text-yellow-500" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {campaign.total_recipients - campaign.messages_sent - campaign.messages_failed}
-            </div>
-            <p className="text-xs text-muted-foreground">Na fila</p>
           </CardContent>
         </Card>
       </div>
@@ -146,7 +171,7 @@ export default function CampaignDetailsPage() {
                         </Badge>
                       </TableCell>
                       <TableCell>
-                        {item.sent_at 
+                        {item.sent_at
                           ? format(new Date(item.sent_at), "HH:mm:ss")
                           : '-'}
                       </TableCell>

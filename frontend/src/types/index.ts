@@ -110,8 +110,10 @@ export interface Segment {
 export interface MessageTemplate {
   id: number;
   name: string;
-  type: 'text' | 'image' | 'document' | 'audio' | 'video';
-  content: string;
+  type?: 'text' | 'image' | 'document' | 'audio' | 'video';
+  message_type?: 'text' | 'image' | 'document' | 'audio' | 'video';
+  content?: string;
+  message?: string;
   media_url?: string;
   created_at: string;
   updated_at: string;

@@ -2,7 +2,7 @@
 # VoxPop - Makefile
 # ==========================================
 
-.PHONY: help dev dev-build down logs shell migrate makemigrations build push deploy test clean
+.PHONY: help dev dev-build down logs shell migrate makemigrations build push deploy test clean frontend frontend-install
 
 # Cores
 GREEN  := $(shell tput -Txterm setaf 2)
@@ -24,55 +24,56 @@ help: ## Mostra esta ajuda
 # ==========================================
 
 dev: ## Sobe toda a stack de desenvolvimento
-	docker compose up -d
-	@echo ""
-	@echo "${GREEN}Stack iniciada!${RESET}"
-	@echo ""
-	@echo "Servicos disponiveis:"
-	@echo "  - Backend:  http://localhost:8000"
-	@echo "  - Frontend: http://localhost:5173"
-	@echo "  - Mailhog:  http://localhost:8025"
-	@echo ""
-	docker compose logs -f
+	@bash dev.sh
 
 dev-build: ## Rebuilda e sobe a stack
-	docker compose up -d --build
-	docker compose logs -f
+	cd backend && docker compose up -d --build
+	cd backend && docker compose logs -f
 
 down: ## Para todos os containers
-	docker compose down
+	cd backend && docker compose down
 
-logs: ## Mostra logs (use: make logs service=backend)
-	docker compose logs -f $(service)
+logs: ## Mostra logs (use: make logs service=web)
+	cd backend && docker compose logs -f $(service)
 
 shell: ## Abre shell Django
-	docker compose exec backend python manage.py shell_plus
+	cd backend && docker compose exec web python manage.py shell_plus
 
 bash: ## Abre bash no backend
-	docker compose exec backend bash
+	cd backend && docker compose exec web bash
+
+# ==========================================
+# Frontend
+# ==========================================
+
+frontend: ## Inicia o frontend em modo desenvolvimento
+	cd frontend && npm run dev
+
+frontend-install: ## Instala dependencias do frontend
+	cd frontend && npm install
 
 # ==========================================
 # Banco de Dados
 # ==========================================
 
 migrate: ## Executa todas as migracoes (shared + tenants)
-	docker compose exec backend python manage.py migrate_schemas --shared
-	docker compose exec backend python manage.py migrate_schemas
+	cd backend && docker compose exec web python manage.py migrate_schemas --shared
+	cd backend && docker compose exec web python manage.py migrate_schemas
 
 migrate-shared: ## Executa apenas migracoes do schema publico
-	docker compose exec backend python manage.py migrate_schemas --shared
+	cd backend && docker compose exec web python manage.py migrate_schemas --shared
 
 migrate-tenants: ## Executa apenas migracoes dos tenants
-	docker compose exec backend python manage.py migrate_schemas
+	cd backend && docker compose exec web python manage.py migrate_schemas
 
 makemigrations: ## Cria migracoes
-	docker compose exec backend python manage.py makemigrations
+	cd backend && docker compose exec web python manage.py makemigrations
 
 createsuperuser: ## Cria superusuario
-	docker compose exec backend python manage.py createsuperuser
+	cd backend && docker compose exec web python manage.py createsuperuser
 
-dbshell: ## Abre shell do PostgreSQL
-	docker compose exec db psql -U voxpop -d voxpop_db
+dbshell: ## Abre shell do PostgreSQL (apenas para banco local)
+	cd backend && docker compose -f docker-compose.local.yml exec db psql -U voxpop -d voxpop_db
 
 # ==========================================
 # Build e Deploy
@@ -105,33 +106,33 @@ undeploy: ## Remove stack do Swarm
 # ==========================================
 
 test: ## Executa testes
-	docker compose exec backend pytest
+	cd backend && docker compose exec web pytest
 
 test-cov: ## Executa testes com coverage
-	docker compose exec backend pytest --cov=apps --cov-report=html
+	cd backend && docker compose exec web pytest --cov=apps --cov-report=html
 
 lint: ## Executa linters
-	docker compose exec backend ruff check .
-	docker compose exec backend black --check .
+	cd backend && docker compose exec web ruff check .
+	cd backend && docker compose exec web black --check .
 
 format: ## Formata codigo
-	docker compose exec backend black .
-	docker compose exec backend ruff check --fix .
+	cd backend && docker compose exec web black .
+	cd backend && docker compose exec web ruff check --fix .
 
 # ==========================================
 # Utilitarios
 # ==========================================
 
 clean: ## Remove containers, volumes e imagens
-	docker compose down -v --remove-orphans
+	cd backend && docker compose down -v --remove-orphans
 	docker system prune -f
 	@echo "${GREEN}Limpeza concluida!${RESET}"
 
 ps: ## Lista containers
-	docker compose ps
+	cd backend && docker compose ps
 
-restart: ## Reinicia um servico (use: make restart service=backend)
-	docker compose restart $(service)
+restart: ## Reinicia um servico (use: make restart service=web)
+	cd backend && docker compose restart $(service)
 
 # ==========================================
 # Producao

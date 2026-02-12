@@ -115,12 +115,44 @@ class DashboardViewSet(viewsets.ViewSet):
         start_date = serializer.validated_data['start']
         end_date = serializer.validated_data['end']
 
-        metrics = DailyMetrics.objects.filter(
-            date__gte=start_date,
-            date__lte=end_date
-        ).order_by('date')
+        # Calcular métricas em tempo real para cada dia no período
+        from datetime import timedelta
+        import collections
 
-        return Response(DailyMetricsSerializer(metrics, many=True).data)
+        metrics_data = []
+        current_date = start_date
+
+        while current_date <= end_date:
+            next_date = current_date + timedelta(days=1)
+
+            # Contar mensagens do dia
+            messages_day = Message.objects.filter(
+                created_at__date=current_date
+            )
+
+            sent = messages_day.filter(
+                status__in=[Message.Status.SENT, Message.Status.DELIVERED, Message.Status.READ]
+            ).count()
+
+            delivered = messages_day.filter(
+                status__in=[Message.Status.DELIVERED, Message.Status.READ]
+            ).count()
+
+            read = messages_day.filter(status=Message.Status.READ).count()
+
+            failed = messages_day.filter(status=Message.Status.FAILED).count()
+
+            metrics_data.append({
+                'date': current_date.isoformat(),
+                'sent': sent,
+                'delivered': delivered,
+                'read': read,
+                'failed': failed,
+            })
+
+            current_date = next_date
+
+        return Response(metrics_data)
 
     @action(detail=False, methods=['get'])
     def top_campaigns(self, request):
@@ -183,3 +215,33 @@ class DashboardViewSet(viewsets.ViewSet):
                 status_map['pending'] += stat['count']
 
         return Response(status_map)
+
+    @action(detail=False, methods=['get'], url_path='activities')
+    def activities(self, request):
+        """
+        Get recent activities.
+        GET /api/v1/dashboard/activities/?limit=5
+        """
+        limit = int(request.query_params.get('limit', 5))
+
+        # Get recent campaigns as activities
+        recent_campaigns = Campaign.objects.filter(
+            started_at__isnull=False
+        ).order_by('-started_at')[:limit]
+
+        activities = []
+        for campaign in recent_campaigns:
+            activities.append({
+                'id': campaign.id,
+                'type': 'campaign',
+                'title': f"Campanha '{campaign.name}' foi iniciada",
+                'time': self._format_time_ago(campaign.started_at),
+                'status': campaign.status if campaign.status != 'completed' else None
+            })
+
+        return Response(activities)
+
+    def _format_time_ago(self, dt):
+        """Format datetime as 'X time ago' string."""
+        from django.utils.timesince import timesince
+        return f"{timesince(dt)} atrás"

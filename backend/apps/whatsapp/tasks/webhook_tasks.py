@@ -40,6 +40,9 @@ def process_webhook(self, webhook_log_id: int) -> None:
             _handle_connection_update(webhook_log.session, payload)
 
         elif event_type == 'messages.update':
+            print("="*20)
+            print("DEBUG - messages.update payload:")
+            print(payload)
             _handle_messages_update(payload)
 
         elif event_type == 'send.message':

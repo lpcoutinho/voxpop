@@ -78,7 +78,8 @@ export default function TemplatesPage() {
     return new Date(dateString).toLocaleDateString('pt-BR');
   };
 
-  const truncateContent = (content: string, maxLength: number = 80) => {
+  const truncateContent = (content: string | undefined, maxLength: number = 80) => {
+    if (!content) return '-';
     if (content.length <= maxLength) return content;
     return content.slice(0, maxLength) + '...';
   };

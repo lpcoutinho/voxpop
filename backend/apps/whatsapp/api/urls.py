@@ -1,7 +1,8 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 
-from apps.whatsapp.api.views import WhatsAppSessionViewSet, WebhookView
+from apps.whatsapp.api.views.session_views import WhatsAppSessionViewSet
+from apps.whatsapp.api.views.webhook_views import WebhookView
 
 app_name = 'whatsapp'
 

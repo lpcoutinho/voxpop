@@ -30,6 +30,7 @@ SHARED_APPS = [
     'django_tenants',
     'apps.tenants',
     'apps.accounts',
+    'apps.core',
 
     # Django core
     'django.contrib.admin',
@@ -67,10 +68,10 @@ INSTALLED_APPS = list(SHARED_APPS) + [
 # =============================================================================
 
 MIDDLEWARE = [
+    'corsheaders.middleware.CorsMiddleware',
     'apps.tenants.middleware.TenantHeaderMiddleware',  # Custom middleware with X-Tenant header support
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
-    'corsheaders.middleware.CorsMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',

@@ -35,7 +35,7 @@ class MessageTemplateListSerializer(serializers.ModelSerializer):
     class Meta:
         model = MessageTemplate
         fields = [
-            'id', 'name', 'message_type', 'has_media',
+            'id', 'name', 'message_type', 'content', 'has_media',
             'is_active', 'created_at'
         ]
 

@@ -69,6 +69,21 @@ def send_message_task(self, message_id: int) -> None:
         # Marca como enviada
         message.mark_as_sent(external_id=external_id, whatsapp_id=whatsapp_id)
 
+        # Salva na tabela Message para contagem no dashboard
+        from apps.messaging.models import Message
+        Message.objects.create(
+            supporter=message.supporter,
+            campaign_item=message.campaign_item,
+            direction='out',
+            status=Message.Status.SENT,
+            message_type=message.message_type or 'text',
+            content=message.content,
+            media_url=message.media_url,
+            external_id=external_id,
+            whatsapp_id=whatsapp_id,
+            created_at=timezone.now(),
+        )
+
         # Incrementa contador da sessão
         session.increment_message_count()
 

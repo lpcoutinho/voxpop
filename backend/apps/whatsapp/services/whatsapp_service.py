@@ -57,8 +57,7 @@ class WhatsAppService:
                         f"Evolution API error: {response.status_code} - {error_detail}"
                     )
                     raise EvolutionAPIError(
-                        f"Evolution API retornou status {response.status_code}",
-                        details={'status_code': response.status_code, 'detail': error_detail}
+                        f"Evolution API retornou status {response.status_code}: {error_detail}"
                     )
 
                 return response.json()
@@ -97,8 +96,7 @@ class WhatsAppService:
                     f"Evolution API error: {response.status_code} - {error_detail}"
                 )
                 raise EvolutionAPIError(
-                    f"Evolution API retornou status {response.status_code}",
-                    details={'status_code': response.status_code, 'detail': error_detail}
+                    f"Evolution API retornou status {response.status_code}: {error_detail}"
                 )
 
             return response.json()
@@ -144,8 +142,15 @@ class WhatsAppService:
         logger.info(f"Instância criada: {instance_name}")
         return result
 
-    def create_instance_sync(self, instance_name: str, webhook_url: str = '') -> dict:
-        """Versão síncrona de create_instance."""
+    def create_instance_sync(self, instance_name: str, webhook_url: str = '', token: str = '') -> dict:
+        """
+        Versão síncrona de create_instance.
+
+        Args:
+            instance_name: Nome único da instância
+            webhook_url: URL para receber webhooks
+            token: Token customizado para a instância (opcional)
+        """
         data = {
             'instanceName': instance_name,
             'qrcode': True,
@@ -162,6 +167,9 @@ class WhatsAppService:
                 'MESSAGES_UPDATE',
                 'SEND_MESSAGE',
             ]
+
+        if token:
+            data['token'] = token
 
         result = self._request_sync('POST', '/instance/create', data=data)
         logger.info(f"Instância criada: {instance_name}")

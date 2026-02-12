@@ -17,7 +17,7 @@ import {
   FormMessage,
 } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
+import { VariableTextarea } from '@/components/ui/variable-textarea';
 import {
   Select,
   SelectContent,
@@ -29,6 +29,13 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Card, CardContent } from '@/components/ui/card';
 import { toast } from 'sonner';
 import { api } from '@/services/api';
+
+const AVAILABLE_VARIABLES = [
+  { name: '{{name}}', label: 'Nome Completo', description: 'Nome completo do apoiador' },
+  { name: '{{first_name}}', label: 'Primeiro Nome', description: 'Apenas o primeiro nome' },
+  { name: '{{city}}', label: 'Cidade', description: 'Cidade do apoiador' },
+  { name: '{{neighborhood}}', label: 'Bairro', description: 'Bairro do apoiador' },
+];
 
 const formSchema = z.object({
   name: z.string().min(3, 'Nome deve ter pelo menos 3 caracteres'),
@@ -76,6 +83,22 @@ export default function CampaignCreatePage() {
       target_groups: [],
     },
   });
+
+  // Função para inserir variável no campo de mensagem
+  const insertVariable = (variable: string) => {
+    const messageField = form.getValues('message');
+    const textarea = document.querySelector('textarea[name="message"]') as HTMLTextAreaElement;
+
+    const newValue = messageField + variable;
+    form.setValue('message', newValue);
+
+    // Colocar o cursor no final
+    if (textarea) {
+      textarea.focus();
+      const pos = newValue.length;
+      textarea.setSelectionRange(pos, pos);
+    }
+  };
 
   const mutation = useMutation({
     mutationFn: async (values: FormValues) => {
@@ -178,19 +201,43 @@ export default function CampaignCreatePage() {
                   <FormItem>
                     <FormLabel>Mensagem</FormLabel>
                     <FormControl>
-                      <Textarea 
-                        placeholder="Digite sua mensagem..." 
-                        className="min-h-[150px]"
-                        {...field} 
+                      <VariableTextarea
+                        value={field.value}
+                        onChange={field.onChange}
+                        placeholder="Digite sua mensagem... Use {{name}}, {{city}}, etc."
+                        minHeight="150px"
                       />
                     </FormControl>
                     <FormDescription>
-                      Dica: Evite mensagens muito longas para melhorar a taxa de leitura.
+                      As variáveis aparecerão destacadas. Clique nos botões abaixo para inserir variáveis automaticamente.
                     </FormDescription>
                     <FormMessage />
                   </FormItem>
                 )}
               />
+
+              {/* Available Variables */}
+              <div className="bg-card rounded-xl p-4 shadow-card">
+                <p className="text-sm text-muted-foreground mb-3">
+                  <strong className="text-foreground">Variáveis disponíveis:</strong> Clique em uma variável para inseri-la na mensagem
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  {AVAILABLE_VARIABLES.map((variable) => (
+                    <button
+                      key={variable.name}
+                      type="button"
+                      onClick={() => insertVariable(variable.name)}
+                      className="px-3 py-2 rounded-lg bg-primary/10 text-primary text-sm font-mono font-medium hover:bg-primary/20 transition-colors border border-primary/20 text-left"
+                      title={variable.description}
+                    >
+                      <div className="flex flex-col">
+                        <span className="font-semibold">{variable.name}</span>
+                        <span className="text-xs text-primary/70 font-normal">{variable.label}</span>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              </div>
 
               <div className="space-y-4 border rounded-lg p-4 bg-gray-50/50">
                 <h3 className="text-lg font-medium">Público Alvo</h3>

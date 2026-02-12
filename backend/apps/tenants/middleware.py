@@ -14,6 +14,9 @@ class TenantHeaderMiddleware(TenantMainMiddleware):
 
     This is useful for development where frontend and backend
     are on different origins.
+
+    NOTE: Webhooks do Evolution API não precisam de tenant no middleware.
+    A WebhookView busca a sessão em todos os tenants e define o schema correto.
     """
 
     TENANT_HEADER = 'HTTP_X_TENANT'
@@ -22,6 +25,11 @@ class TenantHeaderMiddleware(TenantMainMiddleware):
         """
         Override process_request to check for X-Tenant header first.
         """
+        # Webhooks do Evolution API não precisam de tenant no middleware
+        # A view WebhookView trata isso buscando a sessão em todos os tenants
+        if request.path.startswith('/api/v1/whatsapp/webhook/'):
+            return None
+
         # Check for X-Tenant header (slug-based)
         tenant_slug = request.META.get(self.TENANT_HEADER)
         if tenant_slug:

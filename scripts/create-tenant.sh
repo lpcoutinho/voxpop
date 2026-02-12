@@ -16,6 +16,7 @@ BACKEND_CONTAINER="${BACKEND_CONTAINER:-voxpop_backend}"
 DEFAULT_PLAN_ID="${DEFAULT_PLAN_ID:-1}"
 DEFAULT_PASSWORD="${DEFAULT_PASSWORD:-VoxPop123!}"
 BASE_URL="${BASE_URL:-http://localhost:8000}"
+EVOLUTION_API_URL="${EVOLUTION_API_URL:-http://localhost:8080}"
 
 # Cores para output
 GREEN='\033[0;32m'
@@ -49,6 +50,7 @@ usage() {
     echo "  DEFAULT_PLAN_ID     ID do plano (padrão: 1)"
     echo "  DEFAULT_PASSWORD    Senha padrão (padrão: VoxPop123!)"
     echo "  BASE_URL            URL base do backend (padrão: http://localhost:8000)"
+    echo "  EVOLUTION_API_URL   URL da Evolution API (padrão: http://localhost:8080)"
     echo ""
     echo "Exemplos:"
     echo "  $0 'Campanha João' 'joao@exemplo.com'"
@@ -125,6 +127,52 @@ exec_tenant_sql() {
 record_exists() {
     local count=$(exec_sql "SELECT COUNT(*) FROM $1 WHERE $2;" 2>/dev/null | tr -d ' ')
     [ -n "$count" ] && [ "$count" != "0" ]
+}
+
+# Função para configurar webhook na Evolution API
+configure_evolution_webhook() {
+    local instance_name="$1"
+    local webhook_url="$2"
+    local api_key="$3"
+
+    echo -e "  ${CYAN}→${NC} Configurando webhook na Evolution API..."
+
+    # Endpoint da Evolution API para configurar webhook
+    local webhook_endpoint="${EVOLUTION_API_URL}/webhook/set/${instance_name}"
+
+    # Payload com eventos que queremos monitorar
+    local payload=$(cat <<EOF
+{
+  "url": "${webhook_url}",
+  "events": ["messages.upsert", "messages.update", "send.message", "status.instance", "connection.update"],
+  "webhook_by_events": true,
+  "base64": false
+}
+EOF
+)
+
+    # Fazer requisição para Evolution API
+    local response=$(curl -s -X POST \
+        -H "Content-Type: application/json" \
+        -H "apikey: ${api_key}" \
+        -d "$payload" \
+        "$webhook_endpoint" \
+        -w "\n%{http_code}" \
+        2>/dev/null)
+
+    # Extrair status code e body
+    local status_code=$(echo "$response" | tail -1)
+    local body=$(echo "$response" | head -n -1)
+
+    if [ "$status_code" = "200" ] || [ "$status_code" = "201" ]; then
+        echo -e "  ${GREEN}✓${NC} Webhook configurado na Evolution API"
+        return 0
+    else
+        echo -e "  ${YELLOW}⚠${NC} Aviso: Não foi possível configurar webhook automaticamente"
+        echo -e "     Status: ${status_code}"
+        echo -e "     Configure manualmente na Evolution API"
+        return 1
+    fi
 }
 
 # Passo 1: Verificar se plano existe
@@ -383,6 +431,11 @@ EOF
         else
             echo -e "${GREEN}✓ Sessão WhatsApp criada (ID: $WHATSAPP_SESSION_ID)${NC}"
         fi
+
+        # Configurar webhook na Evolution API
+        echo ""
+        configure_evolution_webhook "$WHATSAPP_NAME" "$WEBHOOK_URL" "$WHATSAPP_TOKEN"
+        echo ""
     else
         echo -e "${YELLOW}⚠ Aviso: Não foi possível configurar a sessão WhatsApp${NC}"
     fi
@@ -420,14 +473,13 @@ if [ "$CREATE_WHATSAPP" = "true" ] && [ -n "$WHATSAPP_SESSION_ID" ]; then
     echo -e "  ID:           ${CYAN}$WHATSAPP_SESSION_ID${NC}"
     echo -e "  Nome:         ${CYAN}$WHATSAPP_NAME${NC}"
     echo -e "  Instance:     ${CYAN}$WHATSAPP_NAME${NC}"
-    echo -e "  Token:        ${CYAN}${WHATSAPP_TOKEN}${NC}"
+    echo -e "  Token:        ${CYAN}${WHATSAPP_TOKEN:0:20}...${NC}"
     echo -e "  Número:       ${CYAN}$WHATSAPP_NUMBER${NC}"
     echo -e "  Limite Msg:   ${CYAN}$WHATSAPP_LIMIT/dia${NC}"
     echo -e "  Webhook:      ${CYAN}${WEBHOOK_URL}${NC}"
     echo ""
-    echo -e "${YELLOW}Configure o webhook na Evolution API:${NC}"
-    echo -e "  URL: ${GREEN}${WEBHOOK_URL}${NC}"
-    echo -e "  Eventos: QRCODE_UPDATED, CONNECTION_UPDATE, MESSAGES_UPSERT, MESSAGES_UPDATE, SEND_MESSAGE"
+    echo -e "${GREEN}Webhook configurado automaticamente na Evolution API${NC}"
+    echo -e "  Eventos: messages.upsert, messages.update, send.message, status.instance"
     echo ""
 fi
 

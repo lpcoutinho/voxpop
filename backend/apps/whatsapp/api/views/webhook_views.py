@@ -7,8 +7,10 @@ from django.utils import timezone
 from rest_framework.views import APIView
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
+from django_tenants.utils import schema_context
 
 from apps.whatsapp.models import WhatsAppSession, WebhookLog
+from apps.tenants.models import Client
 
 logger = logging.getLogger(__name__)
 
@@ -27,16 +29,79 @@ class WebhookView(APIView):
     permission_classes = [AllowAny]
     authentication_classes = []  # No auth for webhooks
 
+    def get_session_by_instance_name(self, instance_name: str) -> WhatsAppSession:
+        """
+        Busca sessão WhatsApp em todos os tenants pelo instance_name.
+
+        Args:
+            instance_name: Nome da instância na Evolution API
+
+        Returns:
+            WhatsAppSession encontrada ou None
+
+        Raises:
+            WhatsAppSession.DoesNotExist se não encontrada em nenhum tenant
+        """
+        # Buscar em todos os tenants ativos
+        tenants = Client.objects.filter(is_active=True)
+
+        for tenant in tenants:
+            with schema_context(tenant.schema_name):
+                try:
+                    session = WhatsAppSession.objects.get(
+                        instance_name=instance_name,
+                        is_active=True
+                    )
+                    logger.info(
+                        f"Session {instance_name} found in tenant {tenant.name} "
+                        f"(schema: {tenant.schema_name})"
+                    )
+                    return session, tenant
+                except WhatsAppSession.DoesNotExist:
+                    continue
+
+        logger.warning(f"Session {instance_name} not found in any tenant")
+        return None, None
+
     def post(self, request, instance_name):
         """
         Receive and process webhook from Evolution API.
         """
-        # Find session by instance name
-        session = get_object_or_404(
-            WhatsAppSession,
-            instance_name=instance_name,
-            is_active=True
-        )
+        # Log detalhado do webhook recebido
+        print("\n" + "="*80)
+        print(f"📱 WEBHOOK RECEBIDO - {timezone.now().strftime('%Y-%m-%d %H:%M:%S')}")
+        print("="*80)
+        print(f"Instance: {instance_name}")
+        print(f"Event Type: {request.data.get('event', 'unknown')}")
+        print(f"Full Path: {request.path}")
+        print("-"*80)
+        print("PAYLOAD COMPLETO:")
+        import json
+        print(json.dumps(request.data, indent=2, ensure_ascii=False))
+        print("="*80 + "\n")
+
+        logger.info(f"Webhook POST received for instance: {instance_name}")
+        logger.info(f"Full payload: {request.data}")
+
+        # Find session by instance name (busca em todos os tenants)
+        session, tenant = self.get_session_by_instance_name(instance_name)
+
+        if not session:
+            logger.warning(f"Session not found for instance: {instance_name}")
+            print(f"❌ ERRO: Sessão '{instance_name}' não encontrada")
+            return Response(
+                {'error': f'Session {instance_name} not found'},
+                status=404
+            )
+
+        print(f"✅ Sessão encontrada: {session.name} (tenant: {tenant.name})")
+        print(f"   Status: {session.status}")
+        print(f"   Número: {session.phone_number}")
+        print()
+
+        # Set schema do tenant para requisição atual
+        from django.db import connection
+        connection.set_tenant(tenant)
 
         # Extract event type from payload
         event_type = request.data.get('event', 'unknown')

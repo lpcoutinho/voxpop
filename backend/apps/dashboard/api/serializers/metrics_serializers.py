@@ -33,18 +33,26 @@ class DailyMetricsSerializer(serializers.ModelSerializer):
 
 class MetricsQuerySerializer(serializers.Serializer):
     """Serializer for validating metrics query params."""
-    start = serializers.DateField(required=True)
-    end = serializers.DateField(required=True)
+    start = serializers.DateField(required=False, allow_null=True)
+    end = serializers.DateField(required=False, allow_null=True)
 
     def validate(self, attrs):
         """Validate date range."""
+        from datetime import timedelta, date
+
+        # Se não foi fornecido, usar últimos 7 dias
+        if 'start' not in attrs or attrs['start'] is None:
+            attrs['start'] = date.today() - timedelta(days=7)
+
+        if 'end' not in attrs or attrs['end'] is None:
+            attrs['end'] = date.today()
+
         if attrs['start'] > attrs['end']:
             raise serializers.ValidationError({
                 'start': 'Data inicial deve ser anterior à data final.'
             })
 
         # Limit range to 90 days
-        from datetime import timedelta
         if (attrs['end'] - attrs['start']).days > 90:
             raise serializers.ValidationError({
                 'end': 'O período máximo é de 90 dias.'

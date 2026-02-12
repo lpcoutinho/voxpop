@@ -3,6 +3,7 @@ Campaign models for VoxPop.
 """
 from django.db import models
 from django.conf import settings
+from django_tenants.models import TenantMixin
 from core.models import SoftDeleteModel
 
 class Campaign(SoftDeleteModel):
