@@ -10,15 +10,9 @@ from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
-from apps.dashboard.models import DailyMetrics
-from apps.dashboard.api.serializers import (
-    OverviewSerializer,
-    DailyMetricsSerializer,
-    MetricsQuerySerializer,
-)
+from apps.dashboard.api.serializers import MetricsQuerySerializer
 from apps.supporters.models import Supporter
-from apps.messaging.models import Message
-from apps.campaigns.models import Campaign
+from apps.campaigns.models import Campaign, CampaignItem
 from apps.whatsapp.models import WhatsAppSession
 from core.permissions import IsTenantMember
 
@@ -27,16 +21,15 @@ class DashboardViewSet(viewsets.ViewSet):
     """
     ViewSet for dashboard metrics.
 
-    overview: GET /api/v1/dashboard/overview/
+    list: GET /api/v1/dashboard/ - Returns dashboard stats
     metrics: GET /api/v1/dashboard/metrics/?start=YYYY-MM-DD&end=YYYY-MM-DD
     """
     permission_classes = [IsAuthenticated, IsTenantMember]
 
-    @action(detail=False, methods=['get'])
-    def overview(self, request):
+    def list(self, request):
         """
         Get dashboard overview cards.
-        GET /api/v1/dashboard/overview/
+        GET /api/v1/dashboard/
         """
         today = timezone.now().date()
         month_start = today.replace(day=1)
@@ -47,33 +40,47 @@ class DashboardViewSet(viewsets.ViewSet):
             created_at__date=today
         ).count()
 
-        # Messages stats
-        messages_sent_month = Message.objects.filter(
-            created_at__date__gte=month_start,
-            status__in=[Message.Status.SENT, Message.Status.DELIVERED, Message.Status.READ]
+        # Messages stats - usar CampaignItem que é a fonte de verdade
+        messages_sent_month = CampaignItem.objects.filter(
+            sent_at__date__gte=month_start,
+            status__in=[CampaignItem.Status.SENT, CampaignItem.Status.DELIVERED, CampaignItem.Status.READ]
         ).count()
 
-        messages_sent_today = Message.objects.filter(
-            created_at__date=today,
-            status__in=[Message.Status.SENT, Message.Status.DELIVERED, Message.Status.READ]
+        messages_sent_today = CampaignItem.objects.filter(
+            sent_at__date=today,
+            status__in=[CampaignItem.Status.SENT, CampaignItem.Status.DELIVERED, CampaignItem.Status.READ]
         ).count()
 
         # Calculate delivery and read rates from this month
-        month_messages = Message.objects.filter(created_at__date__gte=month_start)
-        total_sent = month_messages.filter(
-            status__in=[Message.Status.SENT, Message.Status.DELIVERED, Message.Status.READ]
+        month_items = CampaignItem.objects.filter(sent_at__date__gte=month_start)
+        total_sent = month_items.filter(
+            status__in=[CampaignItem.Status.SENT, CampaignItem.Status.DELIVERED, CampaignItem.Status.READ]
         ).count()
 
         if total_sent > 0:
-            delivered = month_messages.filter(
-                status__in=[Message.Status.DELIVERED, Message.Status.READ]
+            delivered = month_items.filter(
+                status__in=[CampaignItem.Status.DELIVERED, CampaignItem.Status.READ]
             ).count()
-            read = month_messages.filter(status=Message.Status.READ).count()
+            read = month_items.filter(status=CampaignItem.Status.READ).count()
             delivery_rate = (delivered / total_sent) * 100
             read_rate = (read / total_sent) * 100
         else:
             delivery_rate = 0.0
             read_rate = 0.0
+
+        # Total messages from campaign counters
+        total_messages_delivered = Campaign.objects.aggregate(
+            total=Sum('messages_delivered')
+        )['total'] or 0
+        total_messages_read = Campaign.objects.aggregate(
+            total=Sum('messages_read')
+        )['total'] or 0
+        total_messages_failed = Campaign.objects.aggregate(
+            total=Sum('messages_failed')
+        )['total'] or 0
+
+        # Total campaigns
+        total_campaigns = Campaign.objects.count()
 
         # Active campaigns (soft-deleted are automatically excluded by manager)
         active_campaigns = Campaign.objects.filter(
@@ -89,19 +96,21 @@ class DashboardViewSet(viewsets.ViewSet):
 
         data = {
             'total_supporters': total_supporters,
-            'new_supporters_today': new_supporters_today,
-            'messages_sent_month': messages_sent_month,
-            'messages_sent_today': messages_sent_today,
+            'total_campaigns': total_campaigns,
+            'active_campaigns': active_campaigns,
+            'messages_sent': messages_sent_month,  # Usar messages_sent para compatibilidade com frontend
+            'messages_delivered': total_messages_delivered,
+            'messages_read': total_messages_read,
+            'messages_failed': total_messages_failed,
             'delivery_rate': round(delivery_rate, 1),
             'read_rate': round(read_rate, 1),
-            'active_campaigns': active_campaigns,
             'whatsapp_sessions': {
                 'connected': connected_sessions,
                 'total': total_sessions
             }
         }
 
-        return Response(OverviewSerializer(data).data)
+        return Response(data)
 
     @action(detail=False, methods=['get'])
     def metrics(self, request):
@@ -125,22 +134,22 @@ class DashboardViewSet(viewsets.ViewSet):
         while current_date <= end_date:
             next_date = current_date + timedelta(days=1)
 
-            # Contar mensagens do dia
-            messages_day = Message.objects.filter(
-                created_at__date=current_date
+            # Contar mensagens do dia usando CampaignItem
+            items_day = CampaignItem.objects.filter(
+                sent_at__date=current_date
             )
 
-            sent = messages_day.filter(
-                status__in=[Message.Status.SENT, Message.Status.DELIVERED, Message.Status.READ]
+            sent = items_day.filter(
+                status__in=[CampaignItem.Status.SENT, CampaignItem.Status.DELIVERED, CampaignItem.Status.READ]
             ).count()
 
-            delivered = messages_day.filter(
-                status__in=[Message.Status.DELIVERED, Message.Status.READ]
+            delivered = items_day.filter(
+                status__in=[CampaignItem.Status.DELIVERED, CampaignItem.Status.READ]
             ).count()
 
-            read = messages_day.filter(status=Message.Status.READ).count()
+            read = items_day.filter(status=CampaignItem.Status.READ).count()
 
-            failed = messages_day.filter(status=Message.Status.FAILED).count()
+            failed = items_day.filter(status=CampaignItem.Status.FAILED).count()
 
             metrics_data.append({
                 'date': current_date.isoformat(),
@@ -167,18 +176,22 @@ class DashboardViewSet(viewsets.ViewSet):
             started_at__gte=thirty_days_ago
         ).exclude(
             total_recipients=0
-        ).order_by('-read_count')[:5]
+        ).order_by('-messages_read')[:5]
 
         data = []
         for campaign in campaigns:
+            read_rate = 0.0
+            if campaign.total_recipients > 0:
+                read_rate = round((campaign.messages_read / campaign.total_recipients) * 100, 1)
+
             data.append({
                 'id': campaign.id,
                 'name': campaign.name,
                 'total_recipients': campaign.total_recipients,
-                'sent': campaign.sent_count,
-                'delivered': campaign.delivered_count,
-                'read': campaign.read_count,
-                'read_rate': campaign.read_rate
+                'sent': campaign.messages_sent,
+                'delivered': campaign.messages_delivered,
+                'read': campaign.messages_read,
+                'read_rate': read_rate
             })
 
         return Response(data)
@@ -189,12 +202,8 @@ class DashboardViewSet(viewsets.ViewSet):
         Get message status distribution.
         GET /api/v1/dashboard/message_status/
         """
-        # Get stats from last 30 days
-        thirty_days_ago = timezone.now() - timedelta(days=30)
-
-        stats = Message.objects.filter(
-            created_at__gte=thirty_days_ago
-        ).values('status').annotate(
+        # Get stats from CampaignItem (fonte de verdade)
+        stats = CampaignItem.objects.values('status').annotate(
             count=Count('id')
         )
 
@@ -211,7 +220,7 @@ class DashboardViewSet(viewsets.ViewSet):
             status = stat['status']
             if status in status_map:
                 status_map[status] = stat['count']
-            elif status in ['queued']:
+            elif status in ['queued', 'pending']:
                 status_map['pending'] += stat['count']
 
         return Response(status_map)
