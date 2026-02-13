@@ -33,9 +33,10 @@ export default function CampaignDetailsPage() {
   if (isLoading) return <div>Carregando...</div>;
   if (!campaign) return <div>Campanha não encontrada.</div>;
 
-  // Cálculo de progresso baseado em ENTREGUES (não enviadas)
-  const progress = campaign.messages_sent > 0
-    ? (campaign.messages_delivered / campaign.messages_sent) * 100
+  // Cálculo de progresso baseado em enviadas + falhas sobre total de destinatários
+  const processed = campaign.messages_sent + campaign.messages_failed;
+  const progress = campaign.total_recipients > 0
+    ? (processed / campaign.total_recipients) * 100
     : 0;
 
   return (
@@ -59,14 +60,14 @@ export default function CampaignDetailsPage() {
         {/* Progresso */}
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Progresso de Entrega</CardTitle>
+            <CardTitle className="text-sm font-medium">Progresso</CardTitle>
             <BarChart className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{Math.round(progress)}%</div>
             <Progress value={progress} className="h-2 mt-2" />
             <p className="text-xs text-muted-foreground mt-1">
-              {campaign.messages_delivered} de {campaign.messages_sent} entregues
+              {processed} de {campaign.total_recipients} processados
             </p>
           </CardContent>
         </Card>

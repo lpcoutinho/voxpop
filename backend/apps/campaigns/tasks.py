@@ -58,10 +58,11 @@ def process_campaign_batch(self, campaign_id):
         ).count()
 
         if pending_count == 0:
-            # Campanha concluída
-            campaign.status = Campaign.Status.COMPLETED
-            campaign.completed_at = timezone.now()
-            campaign.save()
+            # Campanha concluída — usa update() para não sobrescrever contadores F()
+            Campaign.objects.filter(pk=campaign.id).update(
+                status=Campaign.Status.COMPLETED,
+                completed_at=timezone.now()
+            )
             logger.info(f"Campanha {campaign.name} concluída!")
         else:
             # Ainda há itens pendentes (possivelmente bloqueados), agenda próxima tentativa
@@ -108,13 +109,23 @@ def process_campaign_batch(self, campaign_id):
             # Renderizar mensagem com variáveis
             final_message = render_template_variables(campaign.message, context)
 
-            # 3. Enviar Mensagem
-            response = whatsapp_service.send_text_sync(
-                instance_name=campaign.whatsapp_session.instance_name,
-                phone=item.recipient_phone,
-                text=final_message,
-                api_key=campaign.whatsapp_session.access_token
-            )
+            # 3. Enviar Mensagem (com ou sem mídia)
+            if campaign.media_url:
+                response = whatsapp_service.send_media_sync(
+                    instance_name=campaign.whatsapp_session.instance_name,
+                    phone=item.recipient_phone,
+                    media_url=campaign.media_url,
+                    media_type=campaign.media_type or 'image',
+                    caption=final_message,
+                    api_key=campaign.whatsapp_session.access_token
+                )
+            else:
+                response = whatsapp_service.send_text_sync(
+                    instance_name=campaign.whatsapp_session.instance_name,
+                    phone=item.recipient_phone,
+                    text=final_message,
+                    api_key=campaign.whatsapp_session.access_token
+                )
 
             # 4. Atualizar Item
             item.status = CampaignItem.Status.SENT
@@ -152,6 +163,8 @@ def process_campaign_batch(self, campaign_id):
         process_campaign_batch.apply_async(args=[campaign_id], countdown=2)
     else:
         logger.info(f"Todos os itens foram processados. Finalizando campanha {campaign.name}.")
-        campaign.status = Campaign.Status.COMPLETED
-        campaign.completed_at = timezone.now()
-        campaign.save()
+        # Usa update() para não sobrescrever contadores atualizados via F()
+        Campaign.objects.filter(pk=campaign.id).update(
+            status=Campaign.Status.COMPLETED,
+            completed_at=timezone.now()
+        )

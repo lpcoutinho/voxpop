@@ -33,13 +33,41 @@ class CampaignDetailSerializer(CampaignListSerializer):
     target_tags_display = serializers.StringRelatedField(source='target_tags', many=True)
     target_segment_name = serializers.CharField(source='target_segment.name', read_only=True)
 
+    # Métricas computadas a partir dos itens reais (fonte de verdade)
+    total_recipients = serializers.SerializerMethodField()
+    messages_sent = serializers.SerializerMethodField()
+    messages_delivered = serializers.SerializerMethodField()
+    messages_read = serializers.SerializerMethodField()
+    messages_failed = serializers.SerializerMethodField()
+
     class Meta(CampaignListSerializer.Meta):
         fields = CampaignListSerializer.Meta.fields + [
-            'message', 'media_url', 'media_type', 
-            'target_segment', 'target_segment_name', 
+            'message', 'media_url', 'media_type',
+            'target_segment', 'target_segment_name',
             'target_tags', 'target_tags_display', 'target_groups',
             'items', 'whatsapp_session'
         ]
+
+    def _get_items(self, obj):
+        """Cache dos itens para evitar múltiplas queries."""
+        if not hasattr(obj, '_cached_items_list'):
+            obj._cached_items_list = list(obj.items.all())
+        return obj._cached_items_list
+
+    def get_total_recipients(self, obj):
+        return len(self._get_items(obj))
+
+    def get_messages_sent(self, obj):
+        return sum(1 for i in self._get_items(obj) if i.status in ('sent', 'delivered', 'read'))
+
+    def get_messages_delivered(self, obj):
+        return sum(1 for i in self._get_items(obj) if i.status in ('delivered', 'read'))
+
+    def get_messages_read(self, obj):
+        return sum(1 for i in self._get_items(obj) if i.status == 'read')
+
+    def get_messages_failed(self, obj):
+        return sum(1 for i in self._get_items(obj) if i.status == 'failed')
 
 class CampaignCreateSerializer(serializers.ModelSerializer):
     target_groups = serializers.ListField(

@@ -417,6 +417,7 @@ class WhatsAppService:
         media_type: str,
         caption: str = '',
         filename: str = '',
+        api_key: str | None = None,
     ) -> dict:
         """Versão síncrona de send_media."""
         phone_formatted = self._format_phone(phone)
@@ -437,7 +438,8 @@ class WhatsAppService:
         result = self._request_sync(
             'POST',
             f'/message/sendMedia/{instance_name}',
-            data=data
+            data=data,
+            api_key=api_key
         )
 
         logger.info(f"Mídia enviada para {phone} via {instance_name}")

@@ -276,11 +276,11 @@ export default function WhatsAppPage() {
                     <div className="flex items-center justify-between text-sm">
                       <span className="text-muted-foreground">Mensagens hoje</span>
                       <span className="font-medium text-foreground">
-                        {session.messages_today || 0} / {session.daily_message_limit || session.daily_limit || 1000}
+                        {session.messages_sent_today || 0} / {session.daily_message_limit || 1000}
                       </span>
                     </div>
                     <Progress
-                      value={((session.messages_today || 0) / (session.daily_message_limit || session.daily_limit || 1000)) * 100}
+                      value={((session.messages_sent_today || 0) / (session.daily_message_limit || 1000)) * 100}
                       className="h-2"
                     />
                   </div>
@@ -343,21 +343,21 @@ export default function WhatsAppPage() {
               <div>
                 <p className="text-sm text-muted-foreground">Total de Mensagens</p>
                 <p className="text-2xl font-semibold text-foreground">
-                  {sessions.reduce((acc, s) => acc + (s.messages_today || 0), 0).toLocaleString()}
+                  {sessions.reduce((acc, s) => acc + (s.messages_sent_today || 0), 0).toLocaleString()}
                 </p>
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Limite Total</p>
                 <p className="text-2xl font-semibold text-foreground">
-                  {sessions.reduce((acc, s) => acc + (s.daily_message_limit || s.daily_limit || 1000), 0).toLocaleString()}
+                  {sessions.reduce((acc, s) => acc + (s.daily_message_limit || 1000), 0).toLocaleString()}
                 </p>
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Capacidade Usada</p>
                 <p className="text-2xl font-semibold text-foreground">
                   {sessions.length > 0 ? Math.round(
-                    (sessions.reduce((acc, s) => acc + (s.messages_today || 0), 0) /
-                      sessions.reduce((acc, s) => acc + (s.daily_message_limit || s.daily_limit || 1000), 0)) *
+                    (sessions.reduce((acc, s) => acc + (s.messages_sent_today || 0), 0) /
+                      sessions.reduce((acc, s) => acc + (s.daily_message_limit || 1000), 0)) *
                       100
                   ) : 0}%
                 </p>

@@ -127,8 +127,12 @@ export interface WhatsAppSession {
   name: string;
   phone_number?: string;
   status: WhatsAppSessionStatus;
-  messages_today: number;
-  daily_limit: number;
+  status_display?: string;
+  messages_sent_today: number;
+  daily_message_limit: number;
+  remaining_messages?: number;
+  is_active: boolean;
+  is_healthy: boolean;
   created_at: string;
   access_token?: string;
 }
@@ -151,6 +155,8 @@ export interface Campaign {
   messages_delivered: number;
   messages_read: number;
   messages_failed: number;
+  media_url?: string;
+  media_type?: string;
   created_at: string;
   started_at?: string;
   completed_at?: string;

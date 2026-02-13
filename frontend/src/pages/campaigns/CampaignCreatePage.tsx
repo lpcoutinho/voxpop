@@ -1,9 +1,10 @@
+import { useState, useRef } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Upload, X, ImageIcon } from 'lucide-react';
 
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Button } from '@/components/ui/button';
@@ -37,6 +38,9 @@ const AVAILABLE_VARIABLES = [
   { name: '{{neighborhood}}', label: 'Bairro', description: 'Bairro do apoiador' },
 ];
 
+const ACCEPTED_FILE_TYPES = '.jpg,.jpeg,.png,.gif,.mp4,.pdf';
+const MAX_FILE_SIZE_MB = 10;
+
 const formSchema = z.object({
   name: z.string().min(3, 'Nome deve ter pelo menos 3 caracteres'),
   description: z.string().optional(),
@@ -44,6 +48,8 @@ const formSchema = z.object({
   whatsapp_session: z.string().min(1, 'Selecione uma sessão'),
   target_tags: z.array(z.string()).default([]),
   target_groups: z.array(z.string()).default([]),
+  media_url: z.string().optional(),
+  media_type: z.string().optional(),
 }).refine((data) => data.target_tags.length > 0 || data.target_groups.length > 0, {
   message: "Selecione pelo menos um público alvo (Tags ou Grupos)",
   path: ["target_groups"], // Show error on groups field
@@ -53,6 +59,10 @@ type FormValues = z.infer<typeof formSchema>;
 
 export default function CampaignCreatePage() {
   const navigate = useNavigate();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [mediaPreview, setMediaPreview] = useState<string | null>(null);
+  const [mediaFileName, setMediaFileName] = useState<string | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
 
   // Fetch Sessions
   const { data: sessions } = useQuery({
@@ -81,6 +91,8 @@ export default function CampaignCreatePage() {
       whatsapp_session: '',
       target_tags: [],
       target_groups: [],
+      media_url: '',
+      media_type: '',
     },
   });
 
@@ -100,9 +112,67 @@ export default function CampaignCreatePage() {
     }
   };
 
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Validar tamanho
+    if (file.size > MAX_FILE_SIZE_MB * 1024 * 1024) {
+      toast.error(`Arquivo muito grande. Tamanho máximo: ${MAX_FILE_SIZE_MB}MB.`);
+      return;
+    }
+
+    // Preview local para imagens
+    if (file.type.startsWith('image/')) {
+      const reader = new FileReader();
+      reader.onloadend = () => setMediaPreview(reader.result as string);
+      reader.readAsDataURL(file);
+    } else {
+      setMediaPreview(null);
+    }
+
+    setMediaFileName(file.name);
+    setIsUploading(true);
+
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+
+      const { data } = await api.post('/campaigns/upload-media/', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+
+      form.setValue('media_url', data.media_url);
+      form.setValue('media_type', data.media_type);
+      toast.success('Arquivo enviado com sucesso!');
+    } catch (error: any) {
+      const msg = error.response?.data?.detail || 'Erro ao enviar arquivo.';
+      toast.error(msg);
+      removeMedia();
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  const removeMedia = () => {
+    form.setValue('media_url', '');
+    form.setValue('media_type', '');
+    setMediaPreview(null);
+    setMediaFileName(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
   const mutation = useMutation({
     mutationFn: async (values: FormValues) => {
-      await api.post('/campaigns/', values);
+      const payload: Record<string, unknown> = { ...values };
+      // Não enviar campos de mídia vazios
+      if (!payload.media_url) {
+        delete payload.media_url;
+        delete payload.media_type;
+      }
+      await api.post('/campaigns/', payload);
     },
     onSuccess: () => {
       toast.success('Campanha criada com sucesso!');
@@ -133,8 +203,8 @@ export default function CampaignCreatePage() {
 
   return (
     <div className="space-y-6 max-w-3xl mx-auto">
-      <PageHeader 
-        title="Nova Campanha" 
+      <PageHeader
+        title="Nova Campanha"
         description="Configure sua mensagem e o público alvo."
         breadcrumbs={[
           { label: 'Campanhas', href: '/campaigns' },
@@ -146,7 +216,7 @@ export default function CampaignCreatePage() {
         <CardContent className="pt-6">
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-              
+
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <FormField
                   control={form.control}
@@ -209,7 +279,9 @@ export default function CampaignCreatePage() {
                       />
                     </FormControl>
                     <FormDescription>
-                      As variáveis aparecerão destacadas. Clique nos botões abaixo para inserir variáveis automaticamente.
+                      {form.watch('media_url')
+                        ? 'Este texto será enviado como legenda da mídia.'
+                        : 'As variáveis aparecerão destacadas. Clique nos botões abaixo para inserir variáveis automaticamente.'}
                     </FormDescription>
                     <FormMessage />
                   </FormItem>
@@ -239,12 +311,72 @@ export default function CampaignCreatePage() {
                 </div>
               </div>
 
+              {/* Media Upload */}
+              <div className="space-y-3">
+                <FormLabel>Mídia (opcional)</FormLabel>
+                <FormDescription>
+                  Adicione uma imagem, vídeo ou PDF para enviar junto com a mensagem.
+                </FormDescription>
+
+                {!mediaFileName ? (
+                  <div
+                    className="border-2 border-dashed rounded-lg p-6 text-center cursor-pointer hover:border-primary/50 transition-colors"
+                    onClick={() => fileInputRef.current?.click()}
+                  >
+                    <ImageIcon className="mx-auto h-10 w-10 text-muted-foreground mb-2" />
+                    <p className="text-sm text-muted-foreground">
+                      Clique para selecionar um arquivo
+                    </p>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      JPG, PNG, GIF, MP4 ou PDF (max. {MAX_FILE_SIZE_MB}MB)
+                    </p>
+                  </div>
+                ) : (
+                  <div className="border rounded-lg p-4 space-y-3">
+                    {mediaPreview && (
+                      <img
+                        src={mediaPreview}
+                        alt="Preview"
+                        className="max-h-48 rounded-md object-contain mx-auto"
+                      />
+                    )}
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2 text-sm">
+                        {isUploading ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <Upload className="h-4 w-4 text-green-600" />
+                        )}
+                        <span className="truncate max-w-[300px]">{mediaFileName}</span>
+                      </div>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={removeMedia}
+                        disabled={isUploading}
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                )}
+
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept={ACCEPTED_FILE_TYPES}
+                  className="hidden"
+                  onChange={handleFileSelect}
+                />
+              </div>
+
               <div className="space-y-4 border rounded-lg p-4 bg-gray-50/50">
                 <h3 className="text-lg font-medium">Público Alvo</h3>
                 <p className="text-sm text-muted-foreground mb-4">
                   Selecione quem receberá esta mensagem. É obrigatório selecionar pelo menos um grupo ou tag.
                 </p>
-                
+
                 <FormField
                   control={form.control}
                   name="target_groups"
@@ -297,14 +429,14 @@ export default function CampaignCreatePage() {
                 />
 
                 <div className="my-4 border-t border-gray-200" />
-                
+
                 <FormField
                   control={form.control}
                   name="target_tags"
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Filtrar por Tags Específicas</FormLabel>
-                      <Select 
+                      <Select
                         onValueChange={(value) => {
                           if (!field.value?.includes(value)) {
                             field.onChange([...(field.value || []), value]);
@@ -324,7 +456,7 @@ export default function CampaignCreatePage() {
                           ))}
                         </SelectContent>
                       </Select>
-                      
+
                       {/* Display selected tags */}
                       <div className="flex flex-wrap gap-2 mt-2">
                         {field.value?.length === 0 && (
@@ -335,7 +467,7 @@ export default function CampaignCreatePage() {
                           return tag ? (
                             <div key={tagId} className="bg-primary/10 text-primary px-2 py-1 rounded-md text-sm flex items-center gap-2 border border-primary/20">
                               {tag.name}
-                              <button 
+                              <button
                                 type="button"
                                 onClick={() => field.onChange(field.value?.filter(id => id !== tagId))}
                                 className="text-primary hover:text-primary/80 font-bold"
@@ -356,7 +488,7 @@ export default function CampaignCreatePage() {
                 <Button type="button" variant="outline" onClick={() => navigate('/campaigns')}>
                   Cancelar
                 </Button>
-                <Button type="submit" disabled={mutation.isPending}>
+                <Button type="submit" disabled={mutation.isPending || isUploading}>
                   {mutation.isPending && (
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                   )}
