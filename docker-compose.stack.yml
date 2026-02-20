@@ -6,6 +6,10 @@
 # Este arquivo é usado para fazer deploy da aplicação em produção via
 # Portainer/Docker Swarm com Traefik como load balancer e proxy reverso.
 #
+# **IMPORTANTE:**
+# - Esta stack usa PostgreSQL EXTERNO (não cria container de banco)
+# - Cria container Redis para cache/broker
+#
 # Antes de fazer deploy:
 # 1. Build das imagens: ./build-images.sh
 # 2. Criar volumes externos: ver seção DEPLOYMENT.md
@@ -107,14 +111,16 @@ services:
       - DEBUG=0
       - ALLOWED_HOSTS=voxpop.tratto.solutions,localhost,127.0.0.1
 
-      # --- Database ---
-      - POSTGRES_HOST=voxpop-postgres
-      - POSTGRES_PORT=5432
-      - POSTGRES_DB=voxpop_prod
-      - POSTGRES_USER=voxpop
+      # --- Database EXTERNO (PostgreSQL) ---
+      # Configure POSTGRES_HOST para apontar para o servidor PostgreSQL existente
+      # Pode ser: IP, hostname, ou nome de serviço Docker se estiver na mesma rede
+      - POSTGRES_HOST=${POSTGRES_HOST}
+      - POSTGRES_PORT=${POSTGRES_PORT:-5432}
+      - POSTGRES_DB=${POSTGRES_DB:-voxpop_prod}
+      - POSTGRES_USER=${POSTGRES_USER:-voxpop}
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
 
-      # --- Redis ---
+      # --- Redis (Container nesta stack) ---
       - REDIS_URL=redis://voxpop-redis:6379/0
       - CELERY_BROKER_URL=redis://voxpop-redis:6379/1
 
@@ -142,7 +148,6 @@ services:
     networks:
       - LaunchNet
     depends_on:
-      - voxpop-postgres
       - voxpop-redis
     deploy:
       mode: replicated
@@ -217,14 +222,14 @@ services:
       - SECRET_KEY=${SECRET_KEY}
       - DEBUG=0
 
-      # --- Database ---
-      - POSTGRES_HOST=voxpop-postgres
-      - POSTGRES_PORT=5432
-      - POSTGRES_DB=voxpop_prod
-      - POSTGRES_USER=voxpop
+      # --- Database EXTERNO (PostgreSQL) ---
+      - POSTGRES_HOST=${POSTGRES_HOST}
+      - POSTGRES_PORT=${POSTGRES_PORT:-5432}
+      - POSTGRES_DB=${POSTGRES_DB:-voxpop_prod}
+      - POSTGRES_USER=${POSTGRES_USER:-voxpop}
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
 
-      # --- Redis ---
+      # --- Redis (Container nesta stack) ---
       - REDIS_URL=redis://voxpop-redis:6379/0
       - CELERY_BROKER_URL=redis://voxpop-redis:6379/1
 
@@ -237,7 +242,6 @@ services:
     networks:
       - LaunchNet
     depends_on:
-      - voxpop-postgres
       - voxpop-redis
       - voxpop-backend
     deploy:
@@ -284,14 +288,14 @@ services:
       - DJANGO_SETTINGS_MODULE=config.settings.production
       - PYTHONUNBUFFERED=1
 
-      # --- Database ---
-      - POSTGRES_HOST=voxpop-postgres
-      - POSTGRES_PORT=5432
-      - POSTGRES_DB=voxpop_prod
-      - POSTGRES_USER=voxpop
+      # --- Database EXTERNO (PostgreSQL) ---
+      - POSTGRES_HOST=${POSTGRES_HOST}
+      - POSTGRES_PORT=${POSTGRES_PORT:-5432}
+      - POSTGRES_DB=${POSTGRES_DB:-voxpop_prod}
+      - POSTGRES_USER=${POSTGRES_USER:-voxpop}
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
 
-      # --- Redis ---
+      # --- Redis (Container nesta stack) ---
       - REDIS_URL=redis://voxpop-redis:6379/0
       - CELERY_BROKER_URL=redis://voxpop-redis:6379/1
 
@@ -300,7 +304,6 @@ services:
     networks:
       - LaunchNet
     depends_on:
-      - voxpop-postgres
       - voxpop-redis
       - voxpop-backend
     deploy:
@@ -334,61 +337,7 @@ services:
       start_period: 60s
 
   # =============================================================================
-  # POSTGRESQL - Database
-  # =============================================================================
-  voxpop-postgres:
-    image: postgres:15-alpine
-    command: >
-      postgres
-      -c max_connections=200
-      -c shared_buffers=256MB
-      -c effective_cache_size=1GB
-      -c maintenance_work_mem=64MB
-      -c checkpoint_completion_target=0.9
-      -c wal_buffers=16MB
-      -c default_statistics_target=100
-      -c random_page_cost=1.1
-      -c effective_io_concurrency=200
-      -c work_mem=1310kB
-      -c min_wal_size=1GB
-      -c max_wal_size=4GB
-    environment:
-      - POSTGRES_USER=voxpop
-      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
-      - POSTGRES_DB=voxpop_prod
-      - POSTGRES_INITDB_ARGS=--auth-host=scram-sha-256
-      - PGDATA=/var/lib/postgresql/data/pgdata
-    volumes:
-      - voxpop_postgres_data:/var/lib/postgresql/data
-    networks:
-      - LaunchNet
-    deploy:
-      mode: replicated
-      replicas: 1
-      placement:
-        constraints:
-          - node.role == manager
-      restart_policy:
-        condition: any
-        delay: 5s
-        max_attempts: 3
-        window: 120s
-      resources:
-        limits:
-          memory: 2G
-          cpus: '1.0'
-        reservations:
-          memory: 512M
-          cpus: '0.2'
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U voxpop -d voxpop_prod"]
-      interval: 30s
-      timeout: 10s
-      retries: 5
-      start_period: 30s
-
-  # =============================================================================
-  # REDIS - Message Broker & Cache
+  # REDIS - Message Broker & Cache (Container nesta stack)
   # =============================================================================
   voxpop-redis:
     image: redis:7-alpine
@@ -431,10 +380,8 @@ services:
 # =============================================================================
 # VOLUMES (External)
 # =============================================================================
+# NOTA: voxpop_postgres_data foi removido pois usamos PostgreSQL EXTERNO
 volumes:
-  voxpop_postgres_data:
-    external: true
-    name: voxpop_postgres_data
   voxpop_redis_data:
     external: true
     name: voxpop_redis_data
@@ -449,3 +396,41 @@ networks:
   LaunchNet:
     external: true
     name: LaunchNet
+
+# =============================================================================
+# NOTAS IMPORTANTES - PostgreSQL Externo
+# =============================================================================
+#
+# Esta configuração NÃO cria um container PostgreSQL. Você deve configurar
+# as seguintes variáveis de ambiente no Portainer:
+#
+# 1. POSTGRES_HOST
+#    - Hostname/IP do servidor PostgreSQL existente
+#    - Exemplo: "postgres.meudominio.com" ou "192.168.1.100"
+#
+# 2. POSTGRES_PORT (opcional, padrão: 5432)
+#    - Porta do PostgreSQL
+#
+# 3. POSTGRES_DB (opcional, padrão: voxpop_prod)
+#    - Nome do banco de dados
+#    - O banco deve ser criado ANTES do deploy
+#
+# 4. POSTGRES_USER (opcional, padrão: voxpop)
+#    - Usuário do PostgreSQL
+#
+# 5. POSTGRES_PASSWORD (OBRIGATÓRIO)
+#    - Senha do usuário PostgreSQL
+#
+# Antes do deploy, certifique-se de:
+# 1. O banco de dados existe no servidor PostgreSQL
+# 2. O usuário tem permissões no banco
+# 3. O firewall permite conexão dos containers para o PostgreSQL
+# 4. As variáveis de ambiente estão configuradas corretamente
+#
+# Exemplo de variáveis no Portainer:
+#   POSTGRES_HOST: postgres.meudominio.com
+#   POSTGRES_PORT: 5432
+#   POSTGRES_DB: voxpop_prod
+#   POSTGRES_USER: voxpop
+#   POSTGRES_PASSWORD: sua_senha_segura_aqui
+# =============================================================================

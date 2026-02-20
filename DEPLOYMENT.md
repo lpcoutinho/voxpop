@@ -41,8 +41,7 @@ SSH na VPS e execute:
 # Conecte-se à VPS
 ssh usuario@sua-vps.com
 
-# Criar volumes necessários
-docker volume create voxpop_postgres_data
+# Criar volumes necessários (NOTA: PostgreSQL é EXTERNO, não criamos volume para ele)
 docker volume create voxpop_redis_data
 docker volume create voxpop_logs
 
@@ -52,10 +51,11 @@ docker volume ls | grep voxpop
 
 Saída esperada:
 ```
-voxpop_postgres_data
 voxpop_redis_data
 voxpop_logs
 ```
+
+**IMPORTANTE:** Esta stack usa PostgreSQL **EXISTENTE/EXTERNO**, não cria um container de banco. Certifique-se de configurar a variável `POSTGRES_HOST` no Portainer apontando para o servidor PostgreSQL existente.
 
 ### 2. Verificar Rede LaunchNet
 
@@ -82,7 +82,18 @@ Ou crie um arquivo `.env.production` localmente e use no deploy:
 # Django Secret Key (Mínimo 128 caracteres)
 SECRET_KEY=seu-secret-key-aqui-minimo-128-caracteres-aleatorios-mude-isso-imediatamente
 
-# Senha do PostgreSQL (Mínimo 32 caracteres)
+# ==========================================
+# POSTGRESQL EXTERNO (OBRIGATÓRIO)
+# ==========================================
+
+# Hostname ou IP do servidor PostgreSQL existente
+POSTGRES_HOST=postgres.meudominio.com
+# OU use IP: POSTGRES_HOST=192.168.1.100
+# OU use nome de serviço Docker se estiver na mesma rede: POSTGRES_HOST=nome-do-servico-postgres
+
+POSTGRES_PORT=5432
+POSTGRES_DB=voxpop_prod
+POSTGRES_USER=voxpop
 POSTGRES_PASSWORD=sua-senha-postgres-aqui-mude-isso-imediatamente
 
 # ==========================================
@@ -104,15 +115,20 @@ SMTP_USERNAME=seu-email@gmail.com
 SMTP_PASSWORD=sua-senha-de-app-do-google
 
 # ==========================================
-# NOTAS:
+# NOTAS IMPORTANTES:
 # ==========================================
 #
 # 1. Gere SECRET_KEY com: python -c "from django.core.management.utils import get_random_secret_key; print(get_random_secret_key())"
 #
-# 2. Para SMTP do Gmail, use "App Password":
+# 2. POSTGRES_HOST deve apontar para o servidor PostgreSQL EXISTENTE.
+#    - Verifique se o banco voxpop_prod já foi criado
+#    - Verifique se o usuário voxpop tem permissões
+#    - Verifique se o firewall permite conexão
+#
+# 3. Para SMTP do Gmail, use "App Password":
 #    - Google Account → Security → 2-Step Verification → App passwords
 #
-# 3. NUNCA comite este arquivo com credenciais reais!
+# 4. NUNCA comite este arquivo com credenciais reais!
 #
 ```
 
@@ -249,8 +265,9 @@ docker stack services voxpop
 # def456         voxpop_voxpop-backend      1/1        lpcoutinho/voxpop-backend:latest
 # ghi789         voxpop_voxpop-celery       1/1        lpcoutinho/voxpop-backend:latest
 # jkl012         voxpop_voxpop-celery-beat  1/1        lpcoutinho/voxpop-backend:latest
-# mno345         voxpop_voxpop-postgres     1/1        postgres:15-alpine
-# pqr678         voxpop_voxpop-redis        1/1        redis:7-alpine
+# mno345         voxpop_voxpop-redis        1/1        redis:7-alpine
+#
+# NOTA: voxpop-postgres NÃO aparece nesta lista pois usamos PostgreSQL EXTERNO
 ```
 
 ### 2. Verificar Logs
@@ -378,11 +395,14 @@ docker exec -it $(docker ps -q -f name=voxpop-backend) python manage.py migrate
 ### Backup do Banco de Dados
 
 ```bash
-# Backup
-docker exec $(docker ps -q -f name=voxpop-postgres) pg_dump -U voxpop voxpop_prod > backup_$(date +%Y%m%d).sql
+# Backup (via PostgreSQL EXTERNO - adapte conforme seu setup)
+pg_dump -h POSTGRES_HOST -U voxpop -d voxpop_prod > backup_$(date +%Y%m%d).sql
 
-# Restore
-cat backup_20240220.sql | docker exec -i $(docker ps -q -f name=voxpop-postgres) psql -U voxpop -d voxpop_prod
+# Restore (via PostgreSQL EXTERNO - adapte conforme seu setup)
+cat backup_20240220.sql | psql -h POSTGRES_HOST -U voxpop -d voxpop_prod
+
+# NOTA: Se você tiver acesso ao servidor PostgreSQL via SSH, faça:
+# ssh postgres-server "pg_dump -U voxpop voxpop_prod" > backup.sql
 ```
 
 ---
@@ -486,18 +506,31 @@ docker service update --image lpcoutinho/voxpop-frontend:latest voxpop_voxpop-fr
 
 ### Problema: Database connection refused
 
-1. **Verificar se postgres está rodando**
+1. **Verificar variáveis POSTGRES_***
    ```bash
-   docker ps -f name=voxpop-postgres
+   # Ver variáveis configuradas
+   docker service inspect voxpop_voxpop-backend --format '{{.Spec.TaskTemplate.ContainerSpec.Env}}'
    ```
 
-2. **Testar conexão**
+2. **Testar conexão do container para o PostgreSQL externo**
    ```bash
-   docker exec -it $(docker ps -q -f name=voxpop-backend) ping voxpop-postgres
+   # Entrar no container backend
+   docker exec -it $(docker ps -q -f name=voxpop-backend) bash
+
+   # Testar conexão com PostgreSQL (substitua pelo host real)
+   psql -h $POSTGRES_HOST -U voxpop -d voxpop_prod
    ```
 
-3. **Verificar credenciais**
-   - Verifique se `POSTGRES_PASSWORD` está correto nas variáveis de ambiente
+3. **Verificar se o banco existe**
+   ```bash
+   # No servidor PostgreSQL externo
+   psql -U postgres -c "\l" | grep voxpop_prod
+   ```
+
+4. **Verificar firewall**
+   - Certifique-se que o PostgreSQL aceita conexões de fora
+   - Verifique `pg_hba.conf` no servidor PostgreSQL
+   - Teste com `telnet POSTGRES_HOST 5432` do container
 
 ---
 
@@ -543,12 +576,14 @@ Para problemas ou dúvidas:
 
 Use este checklist antes de cada deploy:
 
-- [ ] Volumes criados (`voxpop_postgres_data`, `voxpop_redis_data`, `voxpop_logs`)
+- [ ] Volumes criados (`voxpop_redis_data`, `voxpop_logs`)
+- [ ] Banco de dados `voxpop_prod` criado no PostgreSQL EXTERNO
+- [ ] Usuário `voxpop` com permissões no PostgreSQL EXTERNO
 - [ ] Rede `LaunchNet` existe
 - [ ] DNS configurado corretamente
-- [ ] Variáveis de ambiente configuradas
+- [ ] Variáveis de ambiente configuradas (incluindo POSTGRES_HOST!)
 - [ ] SECRET_KEY gerado e seguro
-- [ ] POSTGRES_PASSWORD definido
+- [ ] POSTGRES_HOST, POSTGRES_USER, POSTGRES_PASSWORD definidos
 - [ ] EVOLUTION_API_KEY configurado
 - [ ] Imagens buildadas e pushadas
 - [ ] Stack deployada no Portainer
@@ -556,6 +591,7 @@ Use este checklist antes de cada deploy:
 - [ ] Health checks passing
 - [ ] Frontend acessível (https://voxpop.tratto.solutions)
 - [ ] API respondendo (https://voxpop.tratto.solutions/api/v1/)
+- [ ] Conexão com PostgreSQL externo funcionando
 - [ ] Celery worker processando tarefas
 - [ ] Logs sem erros críticos
 
