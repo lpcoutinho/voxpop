@@ -25,6 +25,7 @@ services:
       - ./apps:/app/apps
       - ./config:/app/config
       - ./core:/app/core
+      - media_data:/app/media
     ports:
       - "8000:8000"
     depends_on:
@@ -41,6 +42,11 @@ services:
       dockerfile: Dockerfile
     container_name: voxpop_celery
     command: celery -A config worker -l INFO -Q default,campaigns,messages_high,messages_low,webhooks,analytics
+    volumes:
+      - ./apps:/app/apps
+      - ./config:/app/config
+      - ./core:/app/core
+      - media_data:/app/media
     depends_on:
       redis:
         condition: service_healthy
@@ -55,6 +61,11 @@ services:
       dockerfile: Dockerfile
     container_name: voxpop_celery_beat
     command: celery -A config beat -l INFO --scheduler django_celery_beat.schedulers:DatabaseScheduler
+    volumes:
+      - ./apps:/app/apps
+      - ./config:/app/config
+      - ./core:/app/core
+      - media_data:/app/media
     depends_on:
       redis:
         condition: service_healthy
@@ -65,3 +76,4 @@ services:
 
 volumes:
   redis_data:
+  media_data:

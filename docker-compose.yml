@@ -109,6 +109,7 @@ services:
     command: celery -A config worker -l INFO -Q default,campaigns,messages_high,messages_low,webhooks,analytics
     volumes:
       - ./backend:/app
+      - media_data:/app/media
     depends_on:
       db:
         condition: service_healthy
@@ -138,6 +139,7 @@ services:
     command: celery -A config beat -l INFO --scheduler django_celery_beat.schedulers:DatabaseScheduler
     volumes:
       - ./backend:/app
+      - media_data:/app/media
     depends_on:
       db:
         condition: service_healthy
