@@ -17,6 +17,9 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copia código do backend
 COPY . .
 
+# Cria diretório de logs necessário para o collectstatic
+RUN mkdir -p /app/logs
+
 # Coleta arquivos estáticos (usando settings de produção)
 RUN python manage.py collectstatic --noinput --settings=config.settings.production
 
