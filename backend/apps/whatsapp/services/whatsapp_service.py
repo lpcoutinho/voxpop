@@ -387,18 +387,19 @@ class WhatsAppService:
         """
         phone_formatted = self._format_phone(phone)
 
+        # Convert media_url to base64 if it's a local file URL
+        media_content = self._prepare_media(media_url)
+
         data = {
             'number': phone_formatted,
-            'mediaMessage': {
-                'mediatype': media_type,
-                'media': media_url,
-            }
+            'mediatype': media_type,
+            'media': media_content,
         }
 
         if caption:
-            data['mediaMessage']['caption'] = caption
+            data['caption'] = caption
         if filename:
-            data['mediaMessage']['fileName'] = filename
+            data['fileName'] = filename
 
         result = await self._request(
             'POST',
@@ -422,18 +423,22 @@ class WhatsAppService:
         """Versão síncrona de send_media."""
         phone_formatted = self._format_phone(phone)
 
+        # Convert media_url to base64 if it's a local file URL
+        media_content = self._prepare_media(media_url)
+
         data = {
             'number': phone_formatted,
-            'mediaMessage': {
-                'mediatype': media_type,
-                'media': media_url,
-            }
+            'mediatype': media_type,
+            'media': media_content,
         }
 
         if caption:
-            data['mediaMessage']['caption'] = caption
+            data['caption'] = caption
         if filename:
-            data['mediaMessage']['fileName'] = filename
+            data['fileName'] = filename
+
+        logger.info(f"📸 Enviando mídia: media_type={media_type}, url={media_url}")
+        logger.info(f"📦 Payload: {data}")
 
         result = self._request_sync(
             'POST',
@@ -466,6 +471,59 @@ class WhatsAppService:
             return False
 
     # ==================== Utilitários ====================
+
+    def _prepare_media(self, media_url: str) -> str:
+        """
+        Converte media_url para base64 se for um arquivo local.
+        Se já for base64 ou URL pública, retorna como está.
+        """
+        import base64
+        from urllib.parse import urlparse
+        from django.conf import settings
+        import os
+
+        logger.info(f"🔍 _prepare_media: input={media_url}")
+
+        # Se já começar com data: ou for base64, retorna como está
+        if media_url.startswith('data:'):
+            logger.info(f"✅ Já é data URL")
+            return media_url
+        # Se for um base64 string (apenas caracteres base64 válidos)
+        if not media_url.startswith(('http://', 'https://')):
+            logger.info(f"✅ Já é base64 ou caminho local")
+            return media_url
+
+        # Verifica se é uma URL local (do MEDIA_URL)
+        parsed = urlparse(media_url)
+        netloc = parsed.netloc.split(':')[0]  # Remove porta se existir
+
+        logger.info(f"🔍 parsed: netloc={netloc}, path={parsed.path}")
+
+        if netloc in ('localhost', '127.0.0.1') or parsed.path.startswith('/media/'):
+            # É uma URL local, converter para base64
+            # Extrair o caminho do arquivo
+            file_path = parsed.path
+            if file_path.startswith('/media/'):
+                file_path = file_path[7:]  # Remove /media/
+
+            full_path = os.path.join(settings.MEDIA_ROOT, file_path.lstrip('/'))
+
+            logger.info(f"🔁 Convertendo para base64: full_path={full_path}, exists={os.path.exists(full_path)}")
+
+            if os.path.exists(full_path):
+                with open(full_path, 'rb') as f:
+                    file_content = f.read()
+                    base64_content = base64.b64encode(file_content).decode('utf-8')
+
+                    # Evolution API aceita apenas base64 puro (sem data:...)
+                    logger.info(f"✅ Convertido para base64 puro: {base64_content[:50]}...")
+                    return base64_content
+            else:
+                logger.error(f"❌ Arquivo não encontrado: {full_path}")
+
+        # Se for URL pública ou não foi possível converter, retorna original
+        logger.info(f"⚠️ Retornando URL original: {media_url}")
+        return media_url
 
     def _format_phone(self, phone: str) -> str:
         """

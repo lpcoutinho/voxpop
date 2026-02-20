@@ -111,11 +111,13 @@ def process_campaign_batch(self, campaign_id):
 
             # 3. Enviar Mensagem (com ou sem mídia)
             if campaign.media_url:
+                media_type = campaign.media_type or 'image'
+                logger.info(f"📸 Enviando mídia - URL: {campaign.media_url}, Tipo: {media_type}")
                 response = whatsapp_service.send_media_sync(
                     instance_name=campaign.whatsapp_session.instance_name,
                     phone=item.recipient_phone,
                     media_url=campaign.media_url,
-                    media_type=campaign.media_type or 'image',
+                    media_type=media_type,
                     caption=final_message,
                     api_key=campaign.whatsapp_session.access_token
                 )
@@ -130,9 +132,29 @@ def process_campaign_batch(self, campaign_id):
             # 4. Atualizar Item
             item.status = CampaignItem.Status.SENT
             item.sent_at = timezone.now()
-            # Tenta pegar ID da mensagem da resposta da Evolution
-            if isinstance(response, dict) and 'key' in response:
-                 item.message_id = response['key'].get('id')
+
+            # Extrai ID da mensagem da resposta da Evolution API
+            # A resposta contém key.id que é o ID do WhatsApp (necessário para match com webhooks)
+            logger.info(f"📦 Resposta da API para {item.recipient_phone}: {response}")
+            logger.info(f"📋 Tipo da resposta: {type(response)}")
+            message_id = None
+
+            if isinstance(response, dict):
+                # Extrai key.id que é o ID real da mensagem no WhatsApp
+                # Este ID será enviado nos webhooks messages.update como key.id
+                if 'key' in response and isinstance(response['key'], dict):
+                    message_id = response['key'].get('id', '')
+
+                # Log para debug
+                if 'key' in response:
+                    logger.info(f"📋 key.id extraído: {message_id}")
+
+            if message_id:
+                item.message_id = message_id
+                logger.info(f"✅ message_id (key.id) salvo: {message_id}")
+            else:
+                logger.warning(f"⚠️  Não foi possível extrair key.id da resposta. Response: {response}")
+
             item.save()
 
             # 5. Atualizar Métricas da Campanha
