@@ -20,7 +20,7 @@ djangorestframework-simplejwt==5.5.1
 httpx==0.28.1
 
 # Database
-psycopg-binary==3.3.2
+psycopg2-binary==2.9.9
 
 # Utils
 python-decouple==3.8
