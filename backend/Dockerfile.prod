@@ -17,8 +17,8 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copia código do backend
 COPY . .
 
-# Coleta arquivos estáticos
-RUN python manage.py collectstatic --noinput
+# Coleta arquivos estáticos (usando settings de produção)
+RUN python manage.py collectstatic --noinput --settings=config.settings.production
 
 # Cria usuário não-root para segurança
 RUN adduser --disabled-password --gecos '' appuser && \
