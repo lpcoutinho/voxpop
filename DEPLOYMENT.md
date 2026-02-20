@@ -87,7 +87,7 @@ SECRET_KEY=seu-secret-key-aqui-minimo-128-caracteres-aleatorios-mude-isso-imedia
 # ==========================================
 
 # Hostname ou IP do servidor PostgreSQL existente
-POSTGRES_HOST=postgres.meudominio.com
+POSTGRES_HOST=postgres.seudominio.com
 # OU use IP: POSTGRES_HOST=192.168.1.100
 # OU use nome de serviço Docker se estiver na mesma rede: POSTGRES_HOST=nome-do-servico-postgres
 
@@ -142,13 +142,43 @@ python -c "from django.core.management.utils import get_random_secret_key; print
 
 ## 🏗️ Build das Imagens Docker
 
+### ⚠️ Build na VPS (Recomendado)
+
+**É ALTAMENTE RECOMENDADO fazer o build diretamente na VPS** para evitar problemas com arquivos faltando.
+
+```bash
+# SSH na VPS
+ssh usuario@sua-vps.com
+
+# Navegar para o diretório do projeto
+cd ~/voxpop  # ou onde está o código
+
+# Verificar se os arquivos estão completos
+ls -la frontend/src/lib/utils.ts  # deve existir
+ls -la backend/requirements.txt   # deve existir
+
+# Se os arquivos NÃO existirem, clone o repositório:
+git clone <seu-repositorio> voxpop
+cd voxpop
+
+# OU faça scp do código local para a VPS:
+# Na sua máquina local:
+scp -r ~/projects/voxpop usuario@sua-vps.com:~/voxpop
+
+# Build das imagens
+chmod +x build-images.sh
+./build-images.sh
+```
+
+### Build Local (Alternativa)
+
 Na sua **máquina local**, navegue até o projeto:
 
 ```bash
 cd /path/to/voxpop
 ```
 
-### Build da Imagem Backend
+#### Build da Imagem Backend
 
 ```bash
 cd backend
@@ -160,7 +190,7 @@ docker build -f Dockerfile.prod -t lpcoutinho/voxpop-backend:latest .
 docker push lpcoutinho/voxpop-backend:latest
 ```
 
-### Build da Imagem Frontend
+#### Build da Imagem Frontend
 
 ```bash
 cd ../frontend
@@ -172,7 +202,7 @@ docker build -f Dockerfile.prod -t lpcoutinho/voxpop-frontend:latest .
 docker push lpcoutinho/voxpop-frontend:latest
 ```
 
-### Script Automatizado (Opcional)
+#### Script Automatizado (Opcional)
 
 Você pode usar o script `build-images.sh`:
 
@@ -213,7 +243,11 @@ chmod +x build-images.sh
 
    ```yaml
    SECRET_KEY: sua-secret-key-aqui
-   POSTGRES_PASSWORD: sua-senha-postgres-aqui
+   POSTGRES_HOST: postgres.meudominio.com
+   POSTGRES_PORT: 5432
+   POSTGRES_DB: voxpop_prod
+   POSTGRES_USER: voxpop
+   POSTGRES_PASSWORD: sua-senha-postgres
    EVOLUTION_API_URL: https://evolution.tratto.solutions
    EVOLUTION_API_KEY: sua-chave-api-evolution
    MAILER_SENDER_EMAIL: seu-email@gmail.com
