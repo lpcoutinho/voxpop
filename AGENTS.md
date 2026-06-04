@@ -27,7 +27,7 @@ make dev-build
 
 ### Key Services & Ports
 - Frontend: http://localhost:5173 (Vite dev server)
-- Backend API: http://localhost:8000 (Django)
+- Backend API: http://localhost:8001 (Django)
 - PostgreSQL: localhost:5432
 - Redis: localhost:6379
 - MailHog (dev email): http://localhost:8025
@@ -74,6 +74,45 @@ make shell               # Django shell_plus
 make bash                # Backend container bash
 make logs service=backend # Service-specific logs
 ```
+
+
+### Resetar Dados de um Tenant
+```bash
+# Remove todos os dados (supporters, campanhas, mensagens, etc.)
+# Preserva usuários, membros e configurações do tenant
+python manage.py reset_tenant_data <tenant_slug>
+
+# Remove tudo exceto as tags (preserva Lead, Apoiador, etc.)
+python manage.py reset_tenant_data <tenant_slug> --keep-tags
+
+# Exemplo com o tenant padrão
+docker compose exec web python manage.py reset_tenant_data voxpop
+```
+
+**Como funciona:** O django-tenants isola cada tenant em um schema PostgreSQL separado.
+Os dados de domínio (supporters, campanhas, mensagens) ficam no schema do tenant,
+enquanto usuários e membros ficam no schema `public`. O comando percorre todos os
+modelos dos apps de tenant (`supporters`, `campaigns`, `messaging`, `whatsapp`,
+`dashboard`) e executa `delete()` em massa dentro do schema do tenant.
+
+**Alternativa via SQL direto (mais rápido para grandes volumes):**
+```bash
+docker compose exec db psql -U voxpop -d voxpop_db -c "
+DO \$\$
+DECLARE r RECORD;
+BEGIN
+    FOR r IN (
+        SELECT tablename FROM pg_tables
+        WHERE schemaname = 'voxpop'
+        AND tablename != 'django_migrations'
+    ) LOOP
+        EXECUTE 'TRUNCATE TABLE '
+            || quote_ident(r.schemaname) || '.' || quote_ident(r.tablename)
+            || ' CASCADE';
+    END LOOP;
+END \$\$;"
+```
+Substitua `voxpop` pelo `schema_name` do tenant (geralmente o próprio slug).
 
 ### Single Test Execution
 ```bash
