@@ -67,7 +67,7 @@ CELERY_ACCEPT_CONTENT = ['json']
 CELERY_TASK_SERIALIZER = 'json'
 CELERY_RESULT_SERIALIZER = 'json'
 CELERY_TIMEZONE = 'America/Sao_Paulo'
-CELERY_WORKER_CONCURRENCY = int(os.getenv('CELERY_WORKER_CONCURRENCY', '4'))
+CELERY_WORKER_CONCURRENCY = int(os.getenv('CELERY_WORKER_CONCURRENCY') or '4')
 CELERY_TASK_ALWAYS_EAGER = False
 CELERY_WORKER_LOGLEVEL = 'INFO'
 CELERY_BEAT_SCHEDULE = {}
@@ -90,7 +90,7 @@ EVOLUTION_API_KEY = os.getenv('EVOLUTION_API_KEY')
 # ==========================================
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
 EMAIL_HOST = os.getenv('SMTP_ADDRESS')
-EMAIL_PORT = int(os.getenv('SMTP_PORT', '587'))
+EMAIL_PORT = int(os.getenv('SMTP_PORT') or '587')
 EMAIL_USE_TLS = True
 EMAIL_HOST_USER = os.getenv('SMTP_USERNAME')
 EMAIL_HOST_PASSWORD = os.getenv('SMTP_PASSWORD')
