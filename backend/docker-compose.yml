@@ -1,7 +1,21 @@
-# Esta versão usa banco de dados da VPS mas Redis LOCAL
-# Para usar banco local, use: docker compose -f docker-compose.local.yml up -d
-
 services:
+  db:
+    image: postgres:15-alpine
+    container_name: voxpop_db
+    environment:
+      POSTGRES_DB: voxpop_db
+      POSTGRES_USER: voxpop
+      POSTGRES_PASSWORD: voxpop_secret
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U voxpop -d voxpop_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
   redis:
     image: redis:7-alpine
     container_name: voxpop_redis
@@ -20,15 +34,17 @@ services:
       context: .
       dockerfile: Dockerfile
     container_name: voxpop_web
-    command: python manage.py runserver 0.0.0.0:8000
+    command: python manage.py runserver 0.0.0.0:8001
     volumes:
       - ./apps:/app/apps
       - ./config:/app/config
       - ./core:/app/core
       - media_data:/app/media
     ports:
-      - "8000:8000"
+      - "8001:8001"
     depends_on:
+      db:
+        condition: service_healthy
       redis:
         condition: service_healthy
     env_file:
@@ -48,6 +64,8 @@ services:
       - ./core:/app/core
       - media_data:/app/media
     depends_on:
+      db:
+        condition: service_healthy
       redis:
         condition: service_healthy
     env_file:
@@ -67,6 +85,8 @@ services:
       - ./core:/app/core
       - media_data:/app/media
     depends_on:
+      db:
+        condition: service_healthy
       redis:
         condition: service_healthy
     env_file:
@@ -75,5 +95,6 @@ services:
       - DJANGO_SETTINGS_MODULE=config.settings.development
 
 volumes:
+  postgres_data:
   redis_data:
   media_data:

@@ -52,13 +52,13 @@ services:
       target: backend-dev
     container_name: voxpop_backend
     restart: unless-stopped
-    command: python manage.py runserver 0.0.0.0:8000
+    command: python manage.py runserver 0.0.0.0:8001
     volumes:
       - ./backend:/app
       - static_data:/app/staticfiles
       - media_data:/app/media
     ports:
-      - "8000:8000"
+      - "8001:8001"
     depends_on:
       db:
         condition: service_healthy
@@ -92,7 +92,7 @@ services:
     ports:
       - "5173:8080"
     environment:
-      - VITE_API_URL=http://localhost:8000/api/v1
+      - VITE_API_URL=http://localhost:8001/api/v1
     networks:
       - voxpop_network
 

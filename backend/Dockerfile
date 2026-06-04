@@ -21,7 +21,7 @@ RUN pip install --no-cache-dir -r /tmp/requirements/development.txt
 COPY . /app/
 
 # Create non-root user
-RUN adduser --disabled-password --gecos '' appuser && chown -R appuser:appuser /app
+RUN adduser --disabled-password --gecos '' appuser && mkdir -p /app/media/imports && chown -R appuser:appuser /app
 USER appuser
 
 EXPOSE 8000

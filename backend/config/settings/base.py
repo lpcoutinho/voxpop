@@ -277,7 +277,7 @@ EVOLUTION_API_URL = config('EVOLUTION_API_URL', default='http://localhost:8080')
 EVOLUTION_API_KEY = config('EVOLUTION_API_KEY', default='')
 
 # Base URL para webhooks
-BASE_URL = config('BASE_URL', default='http://localhost:8000')
+BASE_URL = config('BASE_URL', default='http://localhost:8001')
 
 # =============================================================================
 # LOGGING
