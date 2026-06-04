@@ -102,7 +102,10 @@ build_frontend() {
     cd frontend
 
     log_info "Buildando: $FRONTEND_IMAGE"
-    docker build -f Dockerfile.prod -t "$FRONTEND_IMAGE" .
+    docker build \
+        -f Dockerfile.prod \
+        --build-arg VITE_API_URL="https://voxpopapi.tratto.solutions/api/v1" \
+        -t "$FRONTEND_IMAGE" .
 
     if [ $? -eq 0 ]; then
         log_success "Build do frontend concluído com sucesso!"
