@@ -15,7 +15,6 @@ import ChangePasswordPage from "@/pages/auth/ChangePasswordPage";
 import DashboardPage from "@/pages/dashboard/DashboardPage";
 import LeadsPage from "@/pages/leads/LeadsPage";
 import SupportersPage from "@/pages/supporters/SupportersPage";
-import SegmentsPage from "@/pages/segments/SegmentsPage";
 import TagsPage from "@/pages/tags/TagsPage";
 import TemplatesPage from "@/pages/templates/TemplatesPage";
 import WhatsAppPage from "@/pages/whatsapp/WhatsAppPage";
@@ -96,7 +95,6 @@ const App = () => (
               <Route path="/dashboard" element={<DashboardPage />} />
               <Route path="/leads" element={<LeadsPage />} />
               <Route path="/supporters" element={<SupportersPage />} />
-              <Route path="/segments" element={<SegmentsPage />} />
               <Route path="/tags" element={<TagsPage />} />
               <Route path="/templates" element={<TemplatesPage />} />
               <Route path="/whatsapp" element={<WhatsAppPage />} />
