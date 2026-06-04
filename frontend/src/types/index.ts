@@ -75,36 +75,6 @@ export interface Supporter {
   updated_at: string;
 }
 
-// Segment Types
-export interface SegmentFilters {
-  contact_status?: 'lead' | 'apoiador' | 'blacklist';
-  city?: string;
-  state?: string;
-  neighborhood?: string;
-  gender?: string;
-  tags?: number[];
-  tags_all?: number[];
-  age_min?: number;
-  age_max?: number;
-  electoral_zone?: string;
-  electoral_section?: string;
-  source?: string;
-}
-
-export interface Segment {
-  id: number;
-  name: string;
-  description?: string;
-  filters: SegmentFilters;
-  cached_count: number;
-  leads_count?: number;
-  supporters_count?: number;
-  is_active: boolean;
-  created_by?: number;
-  created_by_name?: string;
-  created_at: string;
-  updated_at: string;
-}
 
 // Template Types
 export interface MessageTemplate {
@@ -113,8 +83,16 @@ export interface MessageTemplate {
   type?: 'text' | 'image' | 'document' | 'audio' | 'video';
   message_type?: 'text' | 'image' | 'document' | 'audio' | 'video';
   content?: string;
+  signature?: string;
   message?: string;
   media_url?: string;
+  variables?: string[];
+  has_media?: boolean;
+  is_active?: boolean;
+  created_by?: number;
+  description?: string;
+  media_filename?: string;
+  media_mimetype?: string;
   created_at: string;
   updated_at: string;
 }

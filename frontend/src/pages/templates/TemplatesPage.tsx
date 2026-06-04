@@ -12,6 +12,13 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { TemplateFormModal } from '@/components/templates/TemplateFormModal';
 import { Plus, MoreHorizontal, Pencil, Copy, Trash2, FileText, Eye, Loader2 } from 'lucide-react';
 import { MessageTemplate } from '@/types';
 import { toast } from 'sonner';
@@ -37,14 +44,15 @@ export default function TemplatesPage() {
   const queryClient = useQueryClient();
   const [page, setPage] = useState(1);
   const [deleteTemplate, setDeleteTemplate] = useState<MessageTemplate | null>(null);
+  const [formModalOpen, setFormModalOpen] = useState(false);
+  const [editingTemplate, setEditingTemplate] = useState<MessageTemplate | null>(null);
+  const [previewTemplate, setPreviewTemplate] = useState<MessageTemplate | null>(null);
 
-  // Fetch templates from API
   const { data: templates = [], isLoading } = useQuery({
     queryKey: ['templates'],
     queryFn: templatesService.list,
   });
 
-  // Delete mutation
   const deleteMutation = useMutation({
     mutationFn: (id: number) => templatesService.delete(id),
     onSuccess: () => {
@@ -57,7 +65,6 @@ export default function TemplatesPage() {
     },
   });
 
-  // Duplicate mutation
   const duplicateMutation = useMutation({
     mutationFn: (id: number) => templatesService.duplicate(id),
     onSuccess: () => {
@@ -72,6 +79,20 @@ export default function TemplatesPage() {
   const handleDelete = () => {
     if (!deleteTemplate) return;
     deleteMutation.mutate(deleteTemplate.id);
+  };
+
+  const handleOpenCreate = () => {
+    setEditingTemplate(null);
+    setFormModalOpen(true);
+  };
+
+  const handleOpenEdit = (template: MessageTemplate) => {
+    setEditingTemplate(template);
+    setFormModalOpen(true);
+  };
+
+  const handleOpenPreview = (template: MessageTemplate) => {
+    setPreviewTemplate(template);
   };
 
   const formatDate = (dateString: string) => {
@@ -132,11 +153,11 @@ export default function TemplatesPage() {
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
-            <DropdownMenuItem>
+            <DropdownMenuItem onClick={() => handleOpenPreview(item)}>
               <Eye className="h-4 w-4 mr-2" />
               Visualizar
             </DropdownMenuItem>
-            <DropdownMenuItem>
+            <DropdownMenuItem onClick={() => handleOpenEdit(item)}>
               <Pencil className="h-4 w-4 mr-2" />
               Editar
             </DropdownMenuItem>
@@ -185,14 +206,13 @@ export default function TemplatesPage() {
           { label: 'Templates' },
         ]}
         actions={
-          <Button>
+          <Button onClick={handleOpenCreate}>
             <Plus className="h-4 w-4 mr-2" />
             Novo Template
           </Button>
         }
       />
 
-      {/* Variables Info */}
       <div className="bg-card rounded-xl p-4 mb-6 shadow-card">
         <p className="text-sm text-muted-foreground mb-2">
           <strong className="text-foreground">Variáveis disponíveis:</strong> Use essas variáveis nos seus templates para personalizar as mensagens
@@ -216,7 +236,7 @@ export default function TemplatesPage() {
           description="Crie templates para agilizar o envio de mensagens"
           action={{
             label: 'Criar Template',
-            onClick: () => {},
+            onClick: handleOpenCreate,
           }}
         />
       ) : (
@@ -232,7 +252,15 @@ export default function TemplatesPage() {
         />
       )}
 
-      {/* Delete Confirmation */}
+      <TemplateFormModal
+        open={formModalOpen}
+        onOpenChange={(open) => {
+          setFormModalOpen(open);
+          if (!open) setEditingTemplate(null);
+        }}
+        template={editingTemplate}
+      />
+
       <ConfirmDialog
         open={!!deleteTemplate}
         onOpenChange={(open) => !open && setDeleteTemplate(null)}
@@ -242,6 +270,32 @@ export default function TemplatesPage() {
         onConfirm={handleDelete}
         variant="destructive"
       />
+
+      <Dialog open={!!previewTemplate} onOpenChange={(open) => !open && setPreviewTemplate(null)}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>{previewTemplate?.name}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Badge variant="secondary" className={typeColors[previewTemplate?.message_type || 'text']}>
+                {typeLabels[previewTemplate?.message_type || 'text']}
+              </Badge>
+            </div>
+            <div className="bg-muted rounded-lg p-4 whitespace-pre-wrap text-sm leading-relaxed">
+              {previewTemplate?.content}
+            </div>
+            {previewTemplate?.signature && (
+              <div>
+                <p className="text-xs text-muted-foreground mb-1">Assinatura:</p>
+                <div className="bg-muted/50 rounded-lg p-3 whitespace-pre-wrap text-sm text-muted-foreground border border-dashed">
+                  {previewTemplate.signature}
+                </div>
+              </div>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
