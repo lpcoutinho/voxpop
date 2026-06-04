@@ -33,7 +33,7 @@ class ImportJobSerializer(serializers.ModelSerializer):
 class ImportJobCreateSerializer(serializers.Serializer):
     """Serializer for creating an import job."""
     file = serializers.FileField()
-    column_mapping = serializers.DictField(required=False, default=dict)
+    column_mapping = serializers.JSONField(required=False, default=dict)
     auto_tag_ids = serializers.ListField(
         child=serializers.IntegerField(),
         required=False,
@@ -59,6 +59,8 @@ class ImportJobCreateSerializer(serializers.Serializer):
 
     def validate_column_mapping(self, value):
         """Validate column mapping structure."""
+        if not isinstance(value, dict):
+            raise serializers.ValidationError("Mapeamento de colunas deve ser um dicionario")
         valid_fields = {
             'name', 'phone', 'email', 'cpf',
             'city', 'neighborhood', 'state', 'zip_code',
