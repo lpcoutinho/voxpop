@@ -30,7 +30,7 @@ urlpatterns = [
     path('register/', TenantCreateView.as_view(), name='tenant-register'),
 
     # Tenant endpoints
-        path('config/', TenantConfigView.as_view(), name='tenant-config'),
+    path('config/', TenantConfigView.as_view(), name='tenant-config'),
     path('', include(router.urls)),
 
     # Admin endpoints (superuser only)
