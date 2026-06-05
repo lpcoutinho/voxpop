@@ -14,7 +14,9 @@ export interface SupportersFilters {
 }
 
 export interface CreateSupporterData {
-  name: string;
+  name?: string;
+  first_name?: string;
+  last_name?: string;
   phone: string;
   email?: string;
   cpf?: string;

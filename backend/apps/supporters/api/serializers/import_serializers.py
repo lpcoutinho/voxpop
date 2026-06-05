@@ -62,7 +62,8 @@ class ImportJobCreateSerializer(serializers.Serializer):
         if not isinstance(value, dict):
             raise serializers.ValidationError("Mapeamento de colunas deve ser um dicionario")
         valid_fields = {
-            'name', 'phone', 'email', 'cpf',
+            'name', 'first_name', 'last_name',
+            'phone', 'email', 'cpf',
             'city', 'neighborhood', 'state', 'zip_code',
             'electoral_zone', 'electoral_section',
             'birth_date', 'gender'

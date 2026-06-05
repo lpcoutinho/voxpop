@@ -26,7 +26,8 @@ class SupporterListSerializer(serializers.ModelSerializer):
     class Meta:
         model = Supporter
         fields = [
-            'id', 'name', 'phone', 'email', 'city', 'state',
+            'id', 'name', 'first_name', 'last_name',
+            'phone', 'email', 'city', 'state',
             'tags', 'whatsapp_opt_in', 'created_at',
             'is_lead', 'is_supporter_status', 'is_blacklisted', 'contact_status'
         ]
@@ -45,7 +46,8 @@ class SupporterDetailSerializer(serializers.ModelSerializer):
     class Meta:
         model = Supporter
         fields = [
-            'id', 'name', 'phone', 'email', 'cpf',
+            'id', 'name', 'first_name', 'last_name',
+            'phone', 'email', 'cpf',
             'city', 'neighborhood', 'state', 'zip_code',
             'electoral_zone', 'electoral_section',
             'birth_date', 'gender', 'age',
@@ -63,6 +65,9 @@ class SupporterDetailSerializer(serializers.ModelSerializer):
 
 class SupporterCreateSerializer(serializers.ModelSerializer):
     """Serializer for creating supporters."""
+    name = serializers.CharField(required=False)
+    first_name = serializers.CharField(required=False, allow_blank=True)
+    last_name = serializers.CharField(required=False, allow_blank=True)
     tag_ids = serializers.ListField(
         child=serializers.IntegerField(),
         write_only=True,
@@ -80,7 +85,8 @@ class SupporterCreateSerializer(serializers.ModelSerializer):
     class Meta:
         model = Supporter
         fields = [
-            'name', 'phone', 'email', 'cpf',
+            'name', 'first_name', 'last_name',
+            'phone', 'email', 'cpf',
             'city', 'neighborhood', 'state', 'zip_code',
             'electoral_zone', 'electoral_section',
             'birth_date', 'gender',
@@ -88,13 +94,21 @@ class SupporterCreateSerializer(serializers.ModelSerializer):
             'tag_ids', 'initial_status'
         ]
 
+    def validate(self, attrs):
+        name = attrs.get('name')
+        first_name = attrs.get('first_name')
+        if not name and not first_name:
+            raise serializers.ValidationError(
+                {'name': 'Informe o nome ou o primeiro nome do contato.'}
+            )
+        return attrs
+
     def validate_phone(self, value):
         """Normalize and validate phone number."""
         cleaned = clean_phone_number(value)
         if not cleaned:
             raise serializers.ValidationError("Telefone inválido. Use formato: +5511999999999")
 
-        # Check uniqueness
         qs = Supporter.objects.filter(phone=cleaned)
         if self.instance:
             qs = qs.exclude(pk=self.instance.pk)
@@ -128,12 +142,10 @@ class SupporterCreateSerializer(serializers.ModelSerializer):
 
         supporter = super().create(validated_data)
 
-        # Add custom tags
         if tag_ids:
             for tag_id in tag_ids:
                 SupporterTag.objects.create(supporter=supporter, tag_id=tag_id)
 
-        # Set initial status based on parameter
         if initial_status == 'apoiador':
             supporter.promote_to_supporter()
         else:
@@ -144,6 +156,9 @@ class SupporterCreateSerializer(serializers.ModelSerializer):
 
 class SupporterUpdateSerializer(serializers.ModelSerializer):
     """Serializer for updating supporters."""
+    name = serializers.CharField(required=False)
+    first_name = serializers.CharField(required=False, allow_blank=True)
+    last_name = serializers.CharField(required=False, allow_blank=True)
     tag_ids = serializers.ListField(
         child=serializers.IntegerField(),
         write_only=True,
@@ -153,7 +168,8 @@ class SupporterUpdateSerializer(serializers.ModelSerializer):
     class Meta:
         model = Supporter
         fields = [
-            'name', 'phone', 'email', 'cpf',
+            'name', 'first_name', 'last_name',
+            'phone', 'email', 'cpf',
             'city', 'neighborhood', 'state', 'zip_code',
             'electoral_zone', 'electoral_section',
             'birth_date', 'gender',
@@ -167,7 +183,6 @@ class SupporterUpdateSerializer(serializers.ModelSerializer):
         if not cleaned:
             raise serializers.ValidationError("Telefone inválido.")
 
-        # Check uniqueness excluding current instance
         qs = Supporter.objects.filter(phone=cleaned).exclude(pk=self.instance.pk)
         if qs.exists():
             raise serializers.ValidationError("Já existe um apoiador com este telefone.")
@@ -186,14 +201,12 @@ class SupporterUpdateSerializer(serializers.ModelSerializer):
     def validate_tag_ids(self, value):
         """Validate tag IDs exist and are not system tags."""
         if value is not None:
-            # Only validate non-system tags
             existing_ids = set(
                 Tag.objects.filter(id__in=value, is_active=True, is_system=False)
                 .values_list('id', flat=True)
             )
             invalid_ids = set(value) - existing_ids
             if invalid_ids:
-                # Check if any are system tags
                 system_tag_ids = set(
                     Tag.objects.filter(id__in=invalid_ids, is_system=True)
                     .values_list('id', flat=True)
@@ -210,16 +223,12 @@ class SupporterUpdateSerializer(serializers.ModelSerializer):
 
         instance = super().update(instance, validated_data)
 
-        # Update tags if provided (only non-system tags)
         if tag_ids is not None:
-            # Remove only non-system tags (preserve system tags like Lead, Apoiador, Blacklist)
             SupporterTag.objects.filter(
                 supporter=instance,
                 tag__is_system=False
             ).delete()
-            # Add new non-system tags
             for tag_id in tag_ids:
-                # Only add if it's not a system tag
                 tag = Tag.objects.filter(id=tag_id, is_system=False).first()
                 if tag:
                     SupporterTag.objects.get_or_create(supporter=instance, tag=tag)

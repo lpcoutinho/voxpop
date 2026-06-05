@@ -46,7 +46,9 @@ interface ImportJob {
 
 // Campos disponíveis para mapeamento
 const AVAILABLE_FIELDS = [
-  { value: 'name', label: 'Nome', required: true },
+  { value: 'first_name', label: 'Nome', required: false },
+  { value: 'last_name', label: 'Sobrenome', required: false },
+  { value: 'name', label: 'Nome Completo', required: false },
   { value: 'phone', label: 'Telefone', required: true },
   { value: 'email', label: 'Email', required: false },
   { value: 'cpf', label: 'CPF', required: false },

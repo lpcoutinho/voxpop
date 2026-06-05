@@ -80,6 +80,8 @@ export function SupporterEditModal({
           // Map field names to Portuguese labels
           const fieldLabels: Record<string, string> = {
             name: 'Nome',
+            first_name: 'Nome',
+            last_name: 'Sobrenome',
             phone: 'Telefone',
             email: 'Email',
             cpf: 'CPF',
@@ -117,7 +119,8 @@ export function SupporterEditModal({
   useEffect(() => {
     if (supporter) {
       setFormData({
-        name: supporter.name,
+        first_name: supporter.first_name || supporter.name.split(' ')[0] || '',
+        last_name: supporter.last_name || supporter.name.split(' ').slice(1).join(' ') || '',
         phone: supporter.phone,
         email: supporter.email || '',
         cpf: supporter.cpf || '',
@@ -146,11 +149,15 @@ export function SupporterEditModal({
 
     // Clean up empty strings to undefined
     const cleanedData: UpdateSupporterData = {
-      name: formData.name,
       phone: formData.phone,
       whatsapp_opt_in: formData.whatsapp_opt_in,
       tag_ids: selectedTagIds,
     };
+
+    if (formData.first_name || formData.last_name) {
+      cleanedData.first_name = formData.first_name;
+      cleanedData.last_name = formData.last_name || '';
+    }
 
     // Only include optional fields if they have values
     if (formData.email) cleanedData.email = formData.email;
@@ -195,13 +202,21 @@ export function SupporterEditModal({
               Dados Básicos
             </h3>
             <div className="grid grid-cols-2 gap-4">
-              <div className="col-span-2">
-                <Label htmlFor="name">Nome *</Label>
+              <div>
+                <Label htmlFor="first_name">Nome *</Label>
                 <Input
-                  id="name"
-                  value={formData.name || ''}
-                  onChange={(e) => handleChange('name', e.target.value)}
+                  id="first_name"
+                  value={formData.first_name || ''}
+                  onChange={(e) => handleChange('first_name', e.target.value)}
                   required
+                />
+              </div>
+              <div>
+                <Label htmlFor="last_name">Sobrenome</Label>
+                <Input
+                  id="last_name"
+                  value={formData.last_name || ''}
+                  onChange={(e) => handleChange('last_name', e.target.value)}
                 />
               </div>
               <div>

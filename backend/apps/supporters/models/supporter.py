@@ -28,6 +28,18 @@ class Supporter(SoftDeleteModel):
         max_length=255,
         verbose_name='Nome Completo'
     )
+    first_name = models.CharField(
+        max_length=255,
+        blank=True,
+        default='',
+        verbose_name='Nome'
+    )
+    last_name = models.CharField(
+        max_length=255,
+        blank=True,
+        default='',
+        verbose_name='Sobrenome'
+    )
     phone = models.CharField(
         max_length=20,
         unique=True,
@@ -138,6 +150,15 @@ class Supporter(SoftDeleteModel):
             models.Index(fields=['whatsapp_opt_in']),
         ]
 
+    def save(self, *args, **kwargs):
+        if self.first_name:
+            self.name = f"{self.first_name} {self.last_name}".strip()
+        elif self.name:
+            parts = self.name.strip().split(maxsplit=1)
+            self.first_name = parts[0]
+            self.last_name = parts[1] if len(parts) > 1 else ''
+        super().save(*args, **kwargs)
+
     def __str__(self):
         return f"{self.name} ({self.phone})"
 
@@ -162,7 +183,7 @@ class Supporter(SoftDeleteModel):
         """Retorna contexto para renderização de templates."""
         return {
             'name': self.name,
-            'first_name': self.name.split()[0] if self.name else '',
+            'first_name': self.first_name or (self.name.split()[0] if self.name else ''),
             'phone': self.phone,
             'email': self.email or '',
             'city': self.city,

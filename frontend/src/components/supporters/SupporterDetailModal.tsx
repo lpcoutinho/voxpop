@@ -128,7 +128,11 @@ export function SupporterDetailModal({
                 <User className="h-6 w-6 text-primary" />
               </div>
               <div>
-                <DialogTitle className="text-xl">{supporter.name}</DialogTitle>
+                <DialogTitle className="text-xl">
+                  {supporter.first_name
+                    ? `${supporter.first_name} ${supporter.last_name}`.trim()
+                    : supporter.name}
+                </DialogTitle>
                 <div className="flex items-center gap-2 mt-1">
                   {getStatusBadge(supporter)}
                   {supporter.whatsapp_opt_in ? (

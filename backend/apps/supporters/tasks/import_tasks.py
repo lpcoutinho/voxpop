@@ -10,7 +10,8 @@ from tenant_schemas_celery.task import TenantTask
 logger = logging.getLogger(__name__)
 
 VALID_FIELDS = {
-    'name', 'phone', 'email', 'cpf', 'city', 'neighborhood',
+    'name', 'first_name', 'last_name',
+    'phone', 'email', 'cpf', 'city', 'neighborhood',
     'state', 'zip_code', 'electoral_zone', 'electoral_section',
     'birth_date', 'gender',
 }

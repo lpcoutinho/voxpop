@@ -48,6 +48,8 @@ export type ContactStatus = 'lead' | 'apoiador' | 'blacklist';
 export interface Supporter {
   id: number;
   name: string;
+  first_name: string;
+  last_name: string;
   phone: string;
   email?: string;
   cpf?: string;

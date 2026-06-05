@@ -40,7 +40,8 @@ const STATES = [
 ];
 
 const initialFormData: CreateSupporterData = {
-  name: '',
+  first_name: '',
+  last_name: '',
   phone: '',
   email: '',
   cpf: '',
@@ -94,6 +95,8 @@ export function SupporterCreateModal({
           const data = axiosError.response.data;
           const fieldLabels: Record<string, string> = {
             name: 'Nome',
+            first_name: 'Nome',
+            last_name: 'Sobrenome',
             phone: 'Telefone',
             email: 'Email',
             cpf: 'CPF',
@@ -136,12 +139,16 @@ export function SupporterCreateModal({
 
     // Prepare data with cleaned values
     const cleanedData: CreateSupporterData = {
-      name: formData.name,
       phone: formData.phone,
       whatsapp_opt_in: formData.whatsapp_opt_in,
       tag_ids: selectedTagIds,
       initial_status: defaultStatus,
     };
+
+    if (formData.first_name || formData.last_name) {
+      cleanedData.first_name = formData.first_name;
+      cleanedData.last_name = formData.last_name || '';
+    }
 
     // Only include optional fields if they have values
     if (formData.email) cleanedData.email = formData.email;
@@ -193,14 +200,23 @@ export function SupporterCreateModal({
               Dados Basicos
             </h3>
             <div className="grid grid-cols-2 gap-4">
-              <div className="col-span-2">
-                <Label htmlFor="name">Nome *</Label>
+              <div>
+                <Label htmlFor="first_name">Nome *</Label>
                 <Input
-                  id="name"
-                  value={formData.name || ''}
-                  onChange={(e) => handleChange('name', e.target.value)}
-                  placeholder="Nome completo"
+                  id="first_name"
+                  value={formData.first_name || ''}
+                  onChange={(e) => handleChange('first_name', e.target.value)}
+                  placeholder="Primeiro nome"
                   required
+                />
+              </div>
+              <div>
+                <Label htmlFor="last_name">Sobrenome</Label>
+                <Input
+                  id="last_name"
+                  value={formData.last_name || ''}
+                  onChange={(e) => handleChange('last_name', e.target.value)}
+                  placeholder="Sobrenome"
                 />
               </div>
               <div>
