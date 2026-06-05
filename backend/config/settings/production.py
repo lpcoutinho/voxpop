@@ -10,13 +10,14 @@ from .base import *
 # Segurança Produção
 # ==========================================
 DEBUG = False
-ALLOWED_HOSTS = ['voxpop.tratto.solutions', 'www.voxpop.tratto.solutions']
+ALLOWED_HOSTS = ['voxpop.tratto.solutions', 'www.voxpop.tratto.solutions', 'voxpopapi.tratto.solutions', 'api.voxpop.tratto.solutions']
 
 # SSL/TLS Configuration
 SECURE_SSL_REDIRECT = True
 SECURE_HSTS_SECONDS = 31536000
 SECURE_HSTS_INCLUDE_SUBDOMAINS = True
 SECURE_HSTS_PRELOAD = True
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 
 # Cookies Seguros
 SESSION_COOKIE_SECURE = True
