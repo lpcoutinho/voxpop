@@ -98,6 +98,7 @@ def process_campaign_batch(self, campaign_id):
             context = {
                 'name': ' '.join(p.capitalize() for p in name_parts),
                 'first_name': name_parts[0].capitalize() if name_parts else '',
+                'last_name': ' '.join(p.capitalize() for p in name_parts[1:]) if len(name_parts) > 1 else '',
             }
 
             # Adicionar informações adicionais do supporter se disponível

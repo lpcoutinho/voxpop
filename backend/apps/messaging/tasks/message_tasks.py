@@ -56,6 +56,7 @@ def send_message_task(self, message_id: int) -> None:
             context = {
                 'name': ' '.join(p.capitalize() for p in name_parts),
                 'first_name': name_parts[0].capitalize() if name_parts else '',
+                'last_name': ' '.join(p.capitalize() for p in name_parts[1:]) if len(name_parts) > 1 else '',
                 'city': message.supporter.city or '',
                 'neighborhood': message.supporter.neighborhood or '',
                 'state': message.supporter.state or '',
