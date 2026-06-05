@@ -5,6 +5,7 @@ Django settings for production environment.
 import os
 import logging
 from .base import *
+from corsheaders.defaults import default_headers
 
 # ==========================================
 # Segurança Produção
@@ -108,6 +109,7 @@ CORS_ALLOWED_ORIGINS = [
 ]
 CORS_ALLOW_CREDENTIALS = True
 CORS_ALLOW_ALL_ORIGINS = False
+CORS_ALLOW_HEADERS = [*default_headers, 'x-tenant']
 
 # ==========================================
 # File Upload Configuration
