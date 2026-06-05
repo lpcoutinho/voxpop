@@ -31,15 +31,15 @@ CSRF_COOKIE_HTTPONLY = True
 # ==========================================
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.postgresql',
+        'ENGINE': 'django_tenants.postgresql_backend',
         'NAME': os.getenv('POSTGRES_DATABASE', 'voxpop_prod'),
         'USER': os.getenv('POSTGRES_USERNAME', 'voxpop'),
         'PASSWORD': os.getenv('POSTGRES_PASSWORD'),
         'HOST': os.getenv('POSTGRES_HOST', 'voxpop_postgres'),
         'PORT': '5432',
         'OPTIONS': {
-            'MAX_CONNS': 200,
-        }
+            'connect_timeout': 10,
+        },
     }
 }
 
