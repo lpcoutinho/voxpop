@@ -103,3 +103,6 @@ voxpop_*.tar
 
 # Claude
 .claude/
+
+# pyenv
+.python-version
