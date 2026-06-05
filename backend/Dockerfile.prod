@@ -31,5 +31,7 @@ USER appuser
 # Exposição porta
 EXPOSE 8000
 
-# Comando de execução com Gunicorn para produção
-CMD ["gunicorn", "--bind", "0.0.0.0:8000", "--workers", "4", "--timeout", "120", "--worker-class", "sync", "config.wsgi:application"]
+# Entrypoint que executa migrações automaticamente antes de iniciar
+COPY docker-entrypoint.sh /app/docker-entrypoint.sh
+RUN chmod +x /app/docker-entrypoint.sh
+ENTRYPOINT ["/app/docker-entrypoint.sh"]
