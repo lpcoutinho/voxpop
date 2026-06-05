@@ -4,7 +4,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
-import { Loader2, Upload, X, ImageIcon } from 'lucide-react';
+import { Loader2, Upload, X, ImageIcon, FileText } from 'lucide-react';
 
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Button } from '@/components/ui/button';
@@ -50,6 +50,7 @@ const formSchema = z.object({
   target_groups: z.array(z.string()).default([]),
   media_url: z.string().optional(),
   media_type: z.string().optional(),
+  message_template: z.string().optional(),
 }).refine((data) => data.target_tags.length > 0 || data.target_groups.length > 0, {
   message: "Selecione pelo menos um público alvo (Tags ou Grupos)",
   path: ["target_groups"], // Show error on groups field
@@ -73,6 +74,15 @@ export default function CampaignCreatePage() {
     },
   });
 
+  // Fetch Templates
+  const { data: templates } = useQuery({
+    queryKey: ['templates-mini'],
+    queryFn: async () => {
+      const { data } = await api.get('/messages/templates/');
+      return Array.isArray(data) ? data.filter((t: any) => t.is_active !== false) : (data.results || []).filter((t: any) => t.is_active !== false);
+    },
+  });
+
   // Fetch Tags
   const { data: tags } = useQuery({
     queryKey: ['tags'],
@@ -93,8 +103,24 @@ export default function CampaignCreatePage() {
       target_groups: [],
       media_url: '',
       media_type: '',
+      message_template: '',
     },
   });
+
+  // Função para selecionar template
+  const handleTemplateSelect = (templateId: string) => {
+    const template = templates?.find((t: any) => t.id.toString() === templateId);
+    if (template) {
+      form.setValue('message', template.content || '');
+      form.setValue('message_template', templateId);
+      if (template.media_url) {
+        form.setValue('media_url', template.media_url);
+        form.setValue('media_type', template.message_type || template.type || 'image');
+        setMediaPreview(null);
+      }
+      toast.success(`Template "${template.name}" aplicado`);
+    }
+  };
 
   // Função para inserir variável no campo de mensagem
   const insertVariable = (variable: string) => {
@@ -171,6 +197,9 @@ export default function CampaignCreatePage() {
       if (!payload.media_url) {
         delete payload.media_url;
         delete payload.media_type;
+      }
+      if (!payload.message_template) {
+        delete payload.message_template;
       }
       await api.post('/campaigns/', payload);
     },
@@ -262,6 +291,31 @@ export default function CampaignCreatePage() {
                     </FormItem>
                   )}
                 />
+              </div>
+
+              {/* Template Selector */}
+              <div className="bg-card rounded-xl p-4 shadow-card border border-primary/10">
+                <p className="text-sm text-muted-foreground mb-3">
+                  <strong className="text-foreground">Usar Template:</strong> Selecione um template para preencher automaticamente a mensagem.
+                </p>
+                <Select onValueChange={handleTemplateSelect}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecionar template..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {(!templates || templates.length === 0) && (
+                      <SelectItem value="none" disabled>Nenhum template disponível</SelectItem>
+                    )}
+                    {templates?.map((t: any) => (
+                      <SelectItem key={t.id} value={t.id.toString()}>
+                        <div className="flex items-center gap-2">
+                          <FileText className="h-4 w-4" />
+                          {t.name}
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
 
               <FormField
