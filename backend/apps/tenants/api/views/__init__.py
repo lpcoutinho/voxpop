@@ -1,3 +1,4 @@
+from .config_view import TenantConfigView
 from .plan_views import PlanListView
 from .tenant_views import TenantCreateView
 from .admin_views import (
@@ -8,6 +9,7 @@ from .admin_views import (
 )
 
 __all__ = [
+    'TenantConfigView',
     'PlanListView',
     'TenantCreateView',
     # Admin views

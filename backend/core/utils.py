@@ -176,3 +176,27 @@ def render_template_variables(template: str, context: dict[str, Any]) -> str:
         placeholder = f"{{{{{key}}}}}"
         result = result.replace(placeholder, str(value))
     return result
+
+def apply_tenant_signature(tenant, content: str, context: dict[str, Any]) -> str:
+    """
+    Appends the tenant's global signature to content if enabled.
+
+    Args:
+        tenant: Client tenant instance with settings JSONField
+        content: Rendered message content
+        context: Variable context for signature rendering
+
+    Returns:
+        Content with signature appended (if enabled and non-empty)
+    """
+    if not hasattr(tenant, 'settings') or not isinstance(tenant.settings, dict):
+        return content
+
+    signature_enabled = tenant.settings.get('signature_enabled', False)
+    signature_text = tenant.settings.get('signature', '')
+
+    if signature_enabled and signature_text:
+        rendered_signature = render_template_variables(signature_text, context)
+        return content + '\n\n' + rendered_signature
+
+    return content

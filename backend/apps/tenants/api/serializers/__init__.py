@@ -1,3 +1,4 @@
+from .config_serializer import TenantConfigSerializer
 from .plan_serializers import PlanSerializer
 from .tenant_serializers import TenantCreateSerializer, TenantSerializer
 from .admin_serializers import (
@@ -12,6 +13,7 @@ from .admin_serializers import (
 )
 
 __all__ = [
+    'TenantConfigSerializer',
     'PlanSerializer',
     'TenantSerializer',
     'TenantCreateSerializer',

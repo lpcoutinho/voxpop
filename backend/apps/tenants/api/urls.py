@@ -3,6 +3,7 @@ from rest_framework.routers import DefaultRouter
 
 from .views import (
     PlanListView,
+    TenantConfigView,
     TenantCreateView,
     AdminPlanViewSet,
     AdminOrganizationViewSet,
@@ -29,6 +30,7 @@ urlpatterns = [
     path('register/', TenantCreateView.as_view(), name='tenant-register'),
 
     # Tenant endpoints
+        path('config/', TenantConfigView.as_view(), name='tenant-config'),
     path('', include(router.urls)),
 
     # Admin endpoints (superuser only)
