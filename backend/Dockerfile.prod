@@ -23,6 +23,10 @@ RUN mkdir -p /app/logs
 # Coleta arquivos estáticos (usando settings de produção)
 RUN python manage.py collectstatic --noinput --settings=config.settings.production
 
+# Entrypoint (copia antes de virar appuser)
+COPY docker-entrypoint.sh /app/docker-entrypoint.sh
+RUN chmod +x /app/docker-entrypoint.sh
+
 # Cria usuário não-root para segurança
 RUN adduser --disabled-password --gecos '' appuser && \
     chown -R appuser:appuser /app
@@ -31,7 +35,4 @@ USER appuser
 # Exposição porta
 EXPOSE 8000
 
-# Entrypoint que executa migrações automaticamente antes de iniciar
-COPY docker-entrypoint.sh /app/docker-entrypoint.sh
-RUN chmod +x /app/docker-entrypoint.sh
 ENTRYPOINT ["/app/docker-entrypoint.sh"]
