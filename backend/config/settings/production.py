@@ -51,9 +51,6 @@ CACHES = {
     'default': {
         'BACKEND': 'django.core.cache.backends.redis.RedisCache',
         'LOCATION': REDIS_URL,
-        'OPTIONS': {
-            'CLIENT_CLASS': 'django_redis.client.DefaultClient',
-        }
     }
 }
 
@@ -116,7 +113,6 @@ CORS_ALLOW_HEADERS = [*default_headers, 'x-tenant']
 # ==========================================
 STATIC_URL = '/static/'
 STATIC_ROOT = '/app/static/'
-
 MEDIA_URL = '/media/'
 MEDIA_ROOT = '/app/media/'
 
@@ -148,7 +144,7 @@ LOGGING = {
         'file': {
             'class': 'logging.handlers.RotatingFileHandler',
             'filename': '/app/logs/voxpop.log',
-            'maxBytes': 1024*1024*15,  # 15MB
+            'maxBytes': 1024 * 1024 * 15,  # 15MB
             'backupCount': 10,
             'formatter': 'verbose',
         },
@@ -204,6 +200,6 @@ SECURE_BROWSER_XSS_FILTER = True
 # ==========================================
 ENVIRONMENT = 'production'
 NODE_ENV = 'production'
-RAILS_ENV = 'production'  # Para compatibilidade com o padrão do compose
+RAILS_ENV = 'production'
 INSTALLATION_ENV = 'docker'
 RAILS_LOG_TO_STDOUT = True
