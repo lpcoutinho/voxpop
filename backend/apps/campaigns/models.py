@@ -43,6 +43,16 @@ class Campaign(SoftDeleteModel):
         verbose_name='Tipo de Mídia'
     )
 
+    # Template de mensagem
+    message_template = models.ForeignKey(
+        'messaging.MessageTemplate',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='campaigns',
+        verbose_name='Template de Mensagem'
+    )
+
     # Configuração de Disparo
     whatsapp_session = models.ForeignKey(
         'whatsapp.WhatsAppSession',

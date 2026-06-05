@@ -43,6 +43,7 @@ class CampaignDetailSerializer(CampaignListSerializer):
     class Meta(CampaignListSerializer.Meta):
         fields = CampaignListSerializer.Meta.fields + [
             'message', 'media_url', 'media_type',
+            'message_template',
             'target_segment', 'target_segment_name',
             'target_tags', 'target_tags_display', 'target_groups',
             'items', 'whatsapp_session'
@@ -79,8 +80,9 @@ class CampaignCreateSerializer(serializers.ModelSerializer):
     class Meta:
         model = Campaign
         fields = [
-            'name', 'description', 'message', 
+            'name', 'description', 'message',
             'media_url', 'media_type',
+            'message_template',
             'whatsapp_session', 'scheduled_at',
             'target_segment', 'target_tags', 'target_groups'
         ]
