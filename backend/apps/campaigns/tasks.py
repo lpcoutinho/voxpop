@@ -2,7 +2,7 @@ import logging
 import random
 import time
 from celery import shared_task
-from django.db import transaction, models
+from django.db import connection, transaction, models
 from django.utils import timezone
 from tenant_schemas_celery.task import TenantTask
 
@@ -93,9 +93,11 @@ def process_campaign_batch(self, campaign_id):
             time.sleep(delay)
 
             # 2. Preparar contexto e renderizar mensagem
+            raw_name = item.recipient_name or ''
+            name_parts = raw_name.split()
             context = {
-                'name': item.recipient_name or '',
-                'first_name': item.recipient_name.split()[0] if item.recipient_name else '',
+                'name': ' '.join(p.capitalize() for p in name_parts),
+                'first_name': name_parts[0].capitalize() if name_parts else '',
             }
 
             # Adicionar informações adicionais do supporter se disponível
@@ -110,7 +112,8 @@ def process_campaign_batch(self, campaign_id):
             final_message = render_template_variables(campaign.message, context)
 
             # Aplicar assinatura global do tenant
-            final_message = apply_tenant_signature(self.get_tenant(), final_message, context)
+            tenant = self.get_tenant_for_schema(connection.schema_name)
+            final_message = apply_tenant_signature(tenant, final_message, context)
 
             # 3. Enviar Mensagem (com ou sem mídia)
             if campaign.media_url:

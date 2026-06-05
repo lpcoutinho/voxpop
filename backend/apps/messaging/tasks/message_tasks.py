@@ -4,6 +4,7 @@ Celery tasks for message sending and processing.
 import logging
 
 from celery import shared_task
+from django.db import connection
 from django.utils import timezone
 from tenant_schemas_celery.task import TenantTask
 
@@ -50,14 +51,17 @@ def send_message_task(self, message_id: int) -> None:
         # Aplicar assinatura global do tenant
         context = {}
         if message.supporter:
+            raw_name = message.supporter.name or ''
+            name_parts = raw_name.split()
             context = {
-                'name': message.supporter.name or '',
-                'first_name': message.supporter.name.split()[0] if message.supporter.name else '',
+                'name': ' '.join(p.capitalize() for p in name_parts),
+                'first_name': name_parts[0].capitalize() if name_parts else '',
                 'city': message.supporter.city or '',
                 'neighborhood': message.supporter.neighborhood or '',
                 'state': message.supporter.state or '',
             }
-        final_content = apply_tenant_signature(self.get_tenant(), message.content, context)
+        tenant = self.get_tenant_for_schema(connection.schema_name)
+        final_content = apply_tenant_signature(tenant, message.content, context)
 
         # Envia mensagem
         if message.message_type == 'text':
