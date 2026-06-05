@@ -496,9 +496,7 @@ export default function SettingsPage() {
                       <span className="text-muted-foreground">[Conteúdo da mensagem]</span>
                       {signature && signatureEnabled && (
                         <>
-                          {'
-
-'}
+                          {'\n\n'}
                           <span className="text-foreground">{signature}</span>
                         </>
                       )}
