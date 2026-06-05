@@ -15,7 +15,6 @@ class MessageTemplateSerializer(serializers.ModelSerializer):
         model = MessageTemplate
         fields = [
             'id', 'name', 'description', 'message_type', 'content',
-            'signature',
             'media_url', 'media_filename', 'media_mimetype',
             'variables', 'has_media', 'is_active',
             'created_by', 'created_by_name',
@@ -36,7 +35,7 @@ class MessageTemplateListSerializer(serializers.ModelSerializer):
     class Meta:
         model = MessageTemplate
         fields = [
-            'id', 'name', 'message_type', 'content', 'signature', 'has_media',
+            'id', 'name', 'message_type', 'content', 'has_media',
             'is_active', 'created_at'
         ]
 
@@ -48,7 +47,6 @@ class MessageTemplateCreateSerializer(serializers.ModelSerializer):
         model = MessageTemplate
         fields = [
             'name', 'description', 'message_type', 'content',
-            'signature',
             'media_url', 'media_filename', 'media_mimetype', 'is_active'
         ]
 

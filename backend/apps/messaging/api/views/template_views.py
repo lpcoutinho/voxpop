@@ -115,7 +115,6 @@ class MessageTemplateViewSet(viewsets.ModelViewSet):
             description=template.description,
             message_type=template.message_type,
             content=template.content,
-            signature=template.signature,
             media_url=template.media_url,
             media_filename=template.media_filename,
             media_mimetype=template.media_mimetype,

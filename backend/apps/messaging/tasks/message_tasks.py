@@ -7,6 +7,8 @@ from celery import shared_task
 from django.utils import timezone
 from tenant_schemas_celery.task import TenantTask
 
+from core.utils import apply_tenant_signature
+
 logger = logging.getLogger(__name__)
 
 
@@ -24,7 +26,7 @@ def send_message_task(self, message_id: int) -> None:
 
     try:
         message = Message.objects.select_related(
-            'whatsapp_session', 'template'
+            'whatsapp_session', 'template', 'supporter'
         ).get(id=message_id)
     except Message.DoesNotExist:
         logger.error(f"Mensagem {message_id} não encontrada")
@@ -45,12 +47,24 @@ def send_message_task(self, message_id: int) -> None:
         return
 
     try:
+        # Aplicar assinatura global do tenant
+        context = {}
+        if message.supporter:
+            context = {
+                'name': message.supporter.name or '',
+                'first_name': message.supporter.name.split()[0] if message.supporter.name else '',
+                'city': message.supporter.city or '',
+                'neighborhood': message.supporter.neighborhood or '',
+                'state': message.supporter.state or '',
+            }
+        final_content = apply_tenant_signature(self.get_tenant(), message.content, context)
+
         # Envia mensagem
         if message.message_type == 'text':
             result = whatsapp_service.send_text_sync(
                 instance_name=session.instance_name,
                 phone=message.phone,
-                text=message.content,
+                text=final_content,
             )
         else:
             # Envia mídia
@@ -59,7 +73,7 @@ def send_message_task(self, message_id: int) -> None:
                 phone=message.phone,
                 media_url=message.media_url,
                 media_type=message.message_type,
-                caption=message.content,
+                caption=final_content,
             )
 
         # Extrai IDs da resposta

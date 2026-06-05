@@ -40,12 +40,6 @@ class MessageTemplate(SoftDeleteModel):
         help_text='Texto da mensagem. Suporta variáveis: {{name}}, {{city}}, etc.'
     )
 
-    signature = models.TextField(
-        blank=True,
-        verbose_name='Assinatura',
-        help_text='Assinatura ao final da mensagem. Suporta variáveis: {{name}}, {{city}}, etc.'
-    )
-
     # Mídia (se aplicável)
     media_url = models.URLField(
         blank=True,
@@ -104,7 +98,4 @@ class MessageTemplate(SoftDeleteModel):
     def render(self, context: dict) -> str:
         """Renderiza o template com as variáveis fornecidas."""
         from core.utils import render_template_variables
-        rendered = render_template_variables(self.content, context)
-        if self.signature:
-            rendered += '\n\n' + render_template_variables(self.signature, context)
-        return rendered
+        return render_template_variables(self.content, context)

@@ -8,7 +8,7 @@ from tenant_schemas_celery.task import TenantTask
 
 from apps.campaigns.models import Campaign, CampaignItem
 from apps.whatsapp.services.whatsapp_service import whatsapp_service
-from core.utils import render_template_variables
+from core.utils import apply_tenant_signature, render_template_variables
 
 logger = logging.getLogger(__name__)
 
@@ -108,6 +108,9 @@ def process_campaign_batch(self, campaign_id):
 
             # Renderizar mensagem com variáveis
             final_message = render_template_variables(campaign.message, context)
+
+            # Aplicar assinatura global do tenant
+            final_message = apply_tenant_signature(self.get_tenant(), final_message, context)
 
             # 3. Enviar Mensagem (com ou sem mídia)
             if campaign.media_url:
