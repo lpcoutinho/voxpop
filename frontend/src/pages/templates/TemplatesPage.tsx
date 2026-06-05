@@ -285,14 +285,7 @@ export default function TemplatesPage() {
             <div className="bg-muted rounded-lg p-4 whitespace-pre-wrap text-sm leading-relaxed">
               {previewTemplate?.content}
             </div>
-            {previewTemplate?.signature && (
-              <div>
-                <p className="text-xs text-muted-foreground mb-1">Assinatura:</p>
-                <div className="bg-muted/50 rounded-lg p-3 whitespace-pre-wrap text-sm text-muted-foreground border border-dashed">
-                  {previewTemplate.signature}
-                </div>
-              </div>
-            )}
+
           </div>
         </DialogContent>
       </Dialog>

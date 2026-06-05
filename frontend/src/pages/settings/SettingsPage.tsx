@@ -27,14 +27,36 @@ import {
   UserPlus,
   ExternalLink,
   Loader2,
+  PenLine,
+  Save,
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { Switch } from '@/components/ui/switch';
+import { Textarea } from '@/components/ui/textarea';
+import { tenantsService } from '@/services/tenants';
 
-type TabType = 'profile' | 'organization' | 'plan' | 'team';
+type TabType = 'profile' | 'organization' | 'plan' | 'team' | 'signature';
 
 export default function SettingsPage() {
   const { user, tenant } = useAuth();
   const [activeTab, setActiveTab] = useState<TabType>('profile');
+  const [signature, setSignature] = useState('');
+  const [signatureEnabled, setSignatureEnabled] = useState(false);
+  const [isSavingSignature, setIsSavingSignature] = useState(false);
+
+  // Load signature config
+  const { data: configData, isLoading: isLoadingConfig } = useQuery({
+    queryKey: ['tenant-config'],
+    queryFn: () => tenantsService.getConfig(),
+    enabled: activeTab === 'signature',
+  });
+
+  useEffect(() => {
+    if (configData) {
+      setSignature(configData.signature);
+      setSignatureEnabled(configData.signature_enabled);
+    }
+  }, [configData]);
 
   // Buscar membros da equipe
   const { data: teamMembersData, isLoading: isLoadingTeam } = useQuery({
@@ -84,6 +106,7 @@ export default function SettingsPage() {
     { id: 'organization' as TabType, icon: Building2, label: 'Organização' },
     { id: 'plan' as TabType, icon: CreditCard, label: 'Plano de Uso' },
     { id: 'team' as TabType, icon: Users, label: 'Equipe' },
+    { id: 'signature' as TabType, icon: PenLine, label: 'Assinatura' },
   ];
 
   return (
@@ -385,6 +408,112 @@ export default function SettingsPage() {
                   </div>
                 </div>
               </div>
+            </div>
+          )}
+
+          {/* Signature Tab */}
+          {activeTab === 'signature' && (
+            <div className="bg-card rounded-xl p-6 shadow-card">
+              <div className="flex items-center gap-3 mb-6">
+                <PenLine className="h-5 w-5 text-primary" />
+                <h2 className="text-lg font-semibold text-foreground">Assinatura</h2>
+              </div>
+
+              <p className="text-sm text-muted-foreground mb-6">
+                Configure uma assinatura global que será anexada automaticamente ao final de todas
+                as mensagens enviadas. Suporta variáveis como {'{{name}}'}, {'{{city}}'}, etc.
+              </p>
+
+              {isLoadingConfig ? (
+                <div className="flex items-center justify-center py-12">
+                  <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                </div>
+              ) : (
+                <form onSubmit={async (e) => {
+                  e.preventDefault();
+                  setIsSavingSignature(true);
+                  try {
+                    await tenantsService.updateConfig({
+                      signature,
+                      signature_enabled: signatureEnabled,
+                    });
+                    toast.success('Assinatura salva com sucesso');
+                  } catch {
+                    toast.error('Erro ao salvar assinatura');
+                  } finally {
+                    setIsSavingSignature(false);
+                  }
+                }} className="space-y-6">
+                  <div className="flex items-center justify-between p-4 rounded-lg border">
+                    <div>
+                      <Label className="text-foreground cursor-pointer">Ativar assinatura</Label>
+                      <p className="text-sm text-muted-foreground mt-1">
+                        Anexar assinatura a todas as mensagens
+                      </p>
+                    </div>
+                    <Switch
+                      checked={signatureEnabled}
+                      onCheckedChange={setSignatureEnabled}
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <Label htmlFor="signature-text">Texto da assinatura</Label>
+                      <span className="text-xs text-muted-foreground">
+                        {signature.length} caracteres
+                      </span>
+                    </div>
+                    <Textarea
+                      id="signature-text"
+                      value={signature}
+                      onChange={(e) => setSignature(e.target.value)}
+                      placeholder="Ex: Atenciosamente, {{name}} - Equipe VoxPop"
+                      rows={4}
+                    />
+                    <div className="flex flex-wrap gap-1.5 mt-1">
+                      <span className="text-xs text-muted-foreground">Variáveis:</span>
+                      {['{{name}}', '{{first_name}}', '{{city}}', '{{neighborhood}}'].map((v) => (
+                        <code
+                          key={v}
+                          className="px-1.5 py-0.5 rounded bg-primary/10 text-primary text-xs font-mono cursor-pointer hover:bg-primary/20"
+                          onClick={() => setSignature(prev => prev + v)}
+                        >
+                          {v}
+                        </code>
+                      ))}
+                    </div>
+                  </div>
+
+                  <Separator />
+
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2">
+                      <Eye className="h-4 w-4 text-muted-foreground" />
+                      <h3 className="text-sm font-medium text-foreground">Preview</h3>
+                    </div>
+                    <div className="bg-muted rounded-lg p-4 whitespace-pre-wrap text-sm leading-relaxed min-h-[100px]">
+                      <span className="text-muted-foreground">[Conteúdo da mensagem]</span>
+                      {signature && signatureEnabled && (
+                        <>
+                          {'
+
+'}
+                          <span className="text-foreground">{signature}</span>
+                        </>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="flex justify-end">
+                    <Button type="submit" disabled={isSavingSignature}>
+                      {isSavingSignature && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                      <Save className="h-4 w-4 mr-2" />
+                      Salvar assinatura
+                    </Button>
+                  </div>
+                </form>
+              )}
             </div>
           )}
         </div>

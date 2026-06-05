@@ -83,7 +83,6 @@ export interface MessageTemplate {
   type?: 'text' | 'image' | 'document' | 'audio' | 'video';
   message_type?: 'text' | 'image' | 'document' | 'audio' | 'video';
   content?: string;
-  signature?: string;
   message?: string;
   media_url?: string;
   variables?: string[];
@@ -229,4 +228,10 @@ export interface AdminUser extends User {
     name: string;
     role: string;
   }>;
+}
+
+// Tenant Config Types
+export interface TenantConfig {
+  signature: string;
+  signature_enabled: boolean;
 }

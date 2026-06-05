@@ -35,7 +35,6 @@ const initialFormData = {
   description: '',
   message_type: 'text',
   content: '',
-  signature: '',
 };
 
 export function TemplateFormModal({
@@ -56,7 +55,6 @@ export function TemplateFormModal({
         description: template.description || '',
         message_type: template.message_type || template.type || 'text',
         content: template.content || '',
-        signature: template.signature || '',
       });
     } else {
       setFormData(initialFormData);
@@ -113,7 +111,6 @@ export function TemplateFormModal({
       description: formData.description.trim(),
       message_type: formData.message_type,
       content: formData.content.trim(),
-      signature: formData.signature.trim(),
     };
 
     if (isEditing && template) {
@@ -204,29 +201,6 @@ export function TemplateFormModal({
                 </code>
               ))}
             </div>
-          </div>
-
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <Label htmlFor="signature">
-                Assinatura
-                <span className="text-xs text-muted-foreground ml-1">(opcional)</span>
-              </Label>
-              <span className="text-xs text-muted-foreground">
-                {formData.signature.length} caracteres
-              </span>
-            </div>
-            <Textarea
-              id="signature"
-              value={formData.signature}
-              onChange={(e) => handleChange('signature', e.target.value)}
-              placeholder="Ex: Atenciosamente, {{name}} - Equipe VoxPop"
-              rows={3}
-            />
-            <p className="text-xs text-muted-foreground">
-              A assinatura será adicionada ao final de cada mensagem com uma quebra de linha.
-              Também aceita variáveis como {'{{name}}'}.
-            </p>
           </div>
 
           <DialogFooter>
